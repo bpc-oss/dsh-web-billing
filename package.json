@@ -1,0 +1,46 @@
+{
+  "name": "@dsh-local/dsh-web-billing",
+  "version": "1.0.0",
+  "description": "DSH web 人民币 token 计费插件：官方政策自动计价（含峰谷时段）、按消息记账、浏览器端费用角标",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "billing",
+    "token",
+    "pricing",
+    "rmb",
+    "cordis"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./pricing": "./lib/pricing.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "scripts",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/client.js"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,2 @@
+# Local install artifact: junction to the dsh profile's shared dependency layer.
+node_modules/
