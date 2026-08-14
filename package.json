@@ -25,6 +25,7 @@
     "lib",
     "scripts",
     "cordis.patch.yml",
+    "CONTRIBUTING.md",
     "README.md",
     "README.en.md",
     "LICENSE"

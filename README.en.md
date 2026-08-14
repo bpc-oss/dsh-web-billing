@@ -80,6 +80,13 @@ npm run check   # syntax checks
 npm test        # pricing engine unit tests (node:test, zero deps)
 ```
 
+## Contributing / 贡献
+
+PRs and issues are welcome (English or Chinese). This repository is maintained
+**bilingually**: doc changes must update both `README.md` (Chinese) and
+`README.en.md` (English), and config comments are bilingual. Full rules in
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 MIT

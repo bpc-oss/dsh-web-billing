@@ -144,6 +144,12 @@ scripts/         安装脚本
   时改为 `false`（与 GUI 其它路由一致，未做鉴权）。
 - 插件只读取 `session/event` 与提供只读端点，不修改任何会话数据。
 
+## 贡献 / Contributing
+
+欢迎 PR 与 Issue（中英皆可）。本仓库**中英双语维护**：文档改动需同步更新
+`README.md`（中文）与 `README.en.md`（英文），配置注释双语；完整规范见
+[CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ## License
 
 MIT
