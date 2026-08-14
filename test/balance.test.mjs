@@ -13,35 +13,36 @@ test("parses the official CNY payload", () => {
       { currency: "CNY", total_balance: "110.00", granted_balance: "10.00", topped_up_balance: "100.00" }
     ]
   });
-  assert.deepEqual(view, {
+  assert.deepEqual(view.cny, {
     isAvailable: true,
     currency: "CNY",
     total: 110,
     granted: 10,
     toppedUp: 100
   });
+  assert.equal(view.usd, null);
 });
 
-test("prefers CNY over USD", () => {
+test("parses both CNY and USD when both are present", () => {
   const view = parseBalanceResponse({
     is_available: true,
     balance_infos: [
-      { currency: "USD", total_balance: "5.00", granted_balance: "0.00", topped_up_balance: "5.00" },
-      { currency: "CNY", total_balance: "88.50", granted_balance: "8.50", topped_up_balance: "80.00" }
+      { currency: "CNY", total_balance: "88.50", granted_balance: "8.50", topped_up_balance: "80.00" },
+      { currency: "USD", total_balance: "12.34", granted_balance: "1.00", topped_up_balance: "11.34" }
     ]
   });
-  assert.equal(view.currency, "CNY");
-  assert.equal(view.total, 88.5);
+  assert.equal(view.cny.total, 88.5);
+  assert.equal(view.usd.total, 12.34);
+  assert.equal(view.usd.currency, "USD");
+  assert.equal(view.usd.granted, 1);
 });
 
-test("falls back to the first entry when no preferred currency", () => {
+test("handles is_available false", () => {
   const view = parseBalanceResponse({
     is_available: false,
-    balance_infos: [{ currency: "USD", total_balance: "1.25", granted_balance: "0", topped_up_balance: "1.25" }]
+    balance_infos: [{ currency: "CNY", total_balance: "1.25", granted_balance: "0", topped_up_balance: "1.25" }]
   });
-  assert.equal(view.currency, "USD");
-  assert.equal(view.total, 1.25);
-  assert.equal(view.isAvailable, false);
+  assert.equal(view.cny.isAvailable, false);
 });
 
 test("rejects malformed payloads", () => {
@@ -57,14 +58,14 @@ test("tolerates missing/garbage balance fields as zero", () => {
     is_available: true,
     balance_infos: [{ currency: "CNY" }]
   });
-  assert.equal(view.total, 0);
-  assert.equal(view.granted, 0);
-  assert.equal(view.toppedUp, 0);
+  assert.equal(view.cny.total, 0);
+  assert.equal(view.cny.granted, 0);
+  assert.equal(view.cny.toppedUp, 0);
   const weird = parseBalanceResponse({
     is_available: true,
     balance_infos: [{ currency: "CNY", total_balance: "abc", granted_balance: "-3", topped_up_balance: "1e5" }]
   });
-  assert.equal(weird.total, 0);
-  assert.equal(weird.granted, 0);
-  assert.equal(weird.toppedUp, 100000);
+  assert.equal(weird.cny.total, 0);
+  assert.equal(weird.cny.granted, 0);
+  assert.equal(weird.cny.toppedUp, 100000);
 });

@@ -1,16 +1,18 @@
 # dsh-web-billing
 
-DeepSeek Harness（`dsh web`）的人民币 token 计费插件：**按官方政策自动计价**（内置
-政策时间表，含 2026-08-17 起的峰谷定价），逐条消息记账，**实时显示账号余额**，
-浏览器端展示费用。
+DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官方政策自动计价**
+（内置政策时间表，含 2026-08-17 起的峰谷定价），逐条消息记账，**实时显示账号余额**，
+浏览器端展示费用（**界面语言自动切换 ¥/$**）。
 
 - **记账（host 端）**：订阅 `session/event`，对每条带 usage 的 `assistant/message`
-  按消息时刻取价计费，账本持久化到 `$DSH_HOME/storages/web-billing.json`。
+  按消息时刻取价计费（CNY 与 USD 双币种，官方美元价独立发布），账本持久化到
+  `$DSH_HOME/storages/web-billing.json`。
 - **账号余额（host 端）**：复用 provider 的 API key 调用官方 `GET /user/balance`
-  （默认 60s 刷新、5s 超时、失败静默降级），随 `/billing/state` 返回。
+  （默认 60s 刷新、5s 超时、失败静默降级），CNY/USD 双币种随 `/billing/state` 返回。
 - **展示（浏览器端）**：每条 assistant 消息动作条上的费用角标（悬停显示
   token 拆分与模型）；会话头部费用角标，点击展开 本会话 / 今日 / 本月 / 累计 /
-  **账户余额** / 按模型 明细与当前计价方式。
+  **账户余额** / 按模型 明细与当前计价方式。中文界面显示 ¥，英文界面显示 $，
+  也可用 `displayCurrency` 强制指定。
 - **查询端点（只读，默认仅回环）**：`GET /billing/state`、`GET /billing/session/<id>`。
 
 ## 核心特性
@@ -97,11 +99,14 @@ dsh web
 | 键 | 默认 | 说明 |
 |---|---|---|
 | `currency` | `CNY` | 币种标识 |
-| `symbol` | `¥` | 展示符号 |
+| `symbol` | `¥` | 人民币展示符号 |
+| `symbolUsd` | `$` | 美元展示符号 |
+| `displayCurrency` | `auto` | `auto`=跟随界面语言（英文界面显示 USD）；`CNY`/`USD`=强制指定 |
 | `timezone` | `Asia/Shanghai` | 峰谷时段判定时区（IANA） |
 | `peakWindows` | `[[9,12],[14,18]]` | 高峰时段（本地小时，`[start,end)`） |
 | `officialPricing` | `auto` | `auto`=官方政策自动计价；`off`=只用 `prices` |
-| `prices` | `{}` | 用户价格表（覆盖/兜底，单位 ¥/1M） |
+| `prices` | `{}` | 用户价格表（覆盖/兜底，单位 ¥/1M，同时作用于美元价） |
+| `usdPrices` | `{}` | 美元价覆盖（可选，单位 $/1M） |
 | `policyOverrides` | `[]` | 追加的官方政策条目（`since` 必填，`prices` 或 `peak`+`offPeak`） |
 | `persistPath` | `~/.dsh/storages/web-billing.json` | 账本文件路径 |
 | `maxRecent` | `20000` | 最近流水保留条数 |
