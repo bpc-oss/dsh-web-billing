@@ -29,6 +29,14 @@
     "README.en.md",
     "LICENSE"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bpc-oss/dsh-web-billing.git"
+  },
+  "homepage": "https://github.com/bpc-oss/dsh-web-billing#readme",
+  "bugs": {
+    "url": "https://github.com/bpc-oss/dsh-web-billing/issues"
+  },
   "engines": {
     "node": ">=20"
   },
@@ -46,7 +54,8 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/balance.js && node --check lib/client.js"
+    "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/balance.js && node --check lib/client.js",
+    "prepublishOnly": "npm run check && npm test"
   },
   "license": "MIT"
 }
