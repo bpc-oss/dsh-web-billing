@@ -1,7 +1,7 @@
 {
-  "name": "@dsh-local/dsh-web-billing",
+  "name": "dsh-web-billing",
   "version": "1.0.0",
-  "description": "DSH web 人民币 token 计费插件：官方政策自动计价（含峰谷时段）、按消息记账、浏览器端费用角标",
+  "description": "RMB/USD token-billing plugin for DSH web: official-policy auto pricing (incl. peak/off-peak), per-message ledger, account balance, locale-driven currency display",
   "keywords": [
     "dsh",
     "deepseek-harness",
@@ -9,6 +9,7 @@
     "token",
     "pricing",
     "rmb",
+    "usd",
     "cordis"
   ],
   "type": "module",
@@ -23,6 +24,7 @@
   "files": [
     "lib",
     "scripts",
+    "cordis.patch.yml",
     "README.md",
     "README.en.md",
     "LICENSE"
@@ -31,6 +33,9 @@
     "node": ">=20"
   },
   "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web"
     }

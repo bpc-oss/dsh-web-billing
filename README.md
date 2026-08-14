@@ -53,46 +53,30 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
 
 ## 安装
 
-### 1. 链接插件到 profile
+插件是一个标准 **DSH 组合包（bundle）**（`dsh.bundle.patch` 指向包内
+`cordis.patch.yml`），按官方[打包与安装指南](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.zh.md)
+分发。三种安装方式：
 
 ```powershell
-# 在仓库根目录执行
+# 从 GitHub 安装（git 安装运行 prepare 构建；本包为纯 JS，无需构建，开箱即用）
+dsh plugin --profile web add github:<owner>/dsh-web-billing
+
+# 或从 npm 安装（发布后）
+dsh plugin --profile web add dsh-web-billing
+
+# 或本地开发：链接 checkout
 powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 ```
 
-该脚本把 `@dsh-local/dsh-web-billing` 以 junction 链接到
-`$DSH_HOME/profiles/web/node_modules/` 下（不复制文件，改代码即生效）。
+> git 安装时 pnpm ≥10 可能要求构建授权：把提示的包键加入 profile 的
+> `pnpm-workspace.yaml` 的 `allowBuilds` 后重试（本包没有 `prepare` 构建，
+> 通常无需授权）。
 
-### 2. 启用插件
+安装后**重启 `dsh web`** 生效。同一 `$DSH_HOME` 下请只运行一个实例（多个实例
+会争写同一账本文件）。
 
-编辑 `$DSH_HOME/profiles/web/cordis.patch.yml`：
-
-```yaml
-- insert:
-    - id: web-billing
-      name: '@dsh-local/dsh-web-billing'
-      config:
-        currency: CNY
-        symbol: '¥'
-        # officialPricing: auto        # auto=官方政策自动计价（默认）；off=只用下方 prices
-        # timezone: Asia/Shanghai      # 峰谷判定时区（默认）
-        # peakWindows: [[9,12],[14,18]] # 高峰时段（默认）
-        prices:                        # 可选：按模型覆盖官方价
-          deepseek-v4-flash: { input: 1, cacheRead: 0.02, output: 2 }
-        policyOverrides:               # 可选：追加官方政策时间表
-          - since: '2026-09-01T00:00:00+08:00'
-            label: 示例政策
-            prices:
-              deepseek-v4-flash: { input: 5, cacheRead: 0.1, output: 10 }
-```
-
-### 3. 重启 `dsh web`
-
-```powershell
-dsh web
-```
-
-> 同一 `$DSH_HOME` 下请只运行一个 `dsh web` 实例（多个实例会争写同一账本文件）。
+需要覆盖默认配置时，在 `$DSH_HOME/profiles/web/cordis.patch.yml` 按 id 覆写整行
+（覆盖会替换整份 config，需重述所有键）：
 
 ## 配置参考
 

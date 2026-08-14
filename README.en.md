@@ -1,9 +1,10 @@
 # dsh-web-billing
 
-A RMB (CNY) token-billing plugin for the DeepSeek Harness web UI (`dsh web`).
+A RMB/USD token-billing plugin for the DeepSeek Harness web UI (`dsh web`).
 Bills every LLM call automatically against the **official DeepSeek pricing
 policy schedule** (including the peak/off-peak pricing effective 2026-08-17),
-persists a ledger, and renders live cost badges in the browser.
+persists a ledger, shows the **account balance**, and renders live cost badges
+in the browser — **displaying USD when the UI language is English**.
 
 - **Host side**: subscribes to `session/event` and prices each `assistant/message`
   that carries usage, using the message's own timestamp (policy + peak/off-peak
@@ -55,24 +56,22 @@ Semantics:
 
 ## Install
 
+The plugin is a standard DSH **bundle** (`dsh.bundle.patch` → its own
+`cordis.patch.yml`), following the official
+[packaging guide](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md):
+
 ```powershell
+# From GitHub
+dsh plugin --profile web add github:<owner>/dsh-web-billing
+# Or from npm (once published)
+dsh plugin --profile web add dsh-web-billing
+# Or link a local checkout (no copy; edits take effect on restart)
 powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 ```
 
-Then add to `$DSH_HOME/profiles/web/cordis.patch.yml`:
-
-```yaml
-- insert:
-    - id: web-billing
-      name: '@dsh-local/dsh-web-billing'
-      config:
-        currency: CNY
-        symbol: '¥'
-```
-
-Restart `dsh web`. See `README.md` (Chinese) for the full config reference,
-ledger semantics, and development notes. Run only one `dsh web` instance per
-`$DSH_HOME`.
+Restart `dsh web` afterwards. See `README.md` (Chinese) for the full config
+reference, ledger semantics, and development notes. Run only one `dsh web`
+instance per `$DSH_HOME`.
 
 ## Develop
 

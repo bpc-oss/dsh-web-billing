@@ -1,0 +1,32 @@
+# dsh-web-billing bundle layer.
+#
+# Installed via `dsh plugin --profile <name> add dsh-web-billing`
+# (or `add github:<owner>/dsh-web-billing`, or a tarball). This layer is applied
+# after the profile's base bundles; users can override any row below in their
+# own profile `cordis.patch.yml` (later layers win, and a patch replaces the
+# targeted row's whole config).
+#
+# 默认配置即可：官方价格表内置在 lib/pricing.js（含 2026-08-17 起的峰谷定价，
+# 高峰 09:00-12:00 / 14:00-18:00 北京时间，空闲半价），政策变化自动生效。
+# 注意：给某个模型配置 `prices` 会「冻结」该模型价格（覆盖官方政策，包括峰谷
+# 时段），一般不需要配置。
+- insert:
+    - id: web-billing
+      name: dsh-web-billing
+      config:
+        currency: CNY
+        symbol: '¥'
+        symbolUsd: '$'
+        displayCurrency: auto
+        # officialPricing: auto            # auto=官方政策自动计价（默认）；off=只用 prices
+        # timezone: Asia/Shanghai          # 峰谷判定时区（默认）
+        # peakWindows: [[9,12],[14,18]]    # 高峰时段（默认）
+        # prices:                          # 可选：冻结某模型价格（¥/1M，同时作用于美元价）
+        #   my-custom-model: { input: 1, cacheRead: 0.05, output: 2 }
+        # usdPrices:                       # 可选：美元价覆盖（$/1M）
+        #   my-custom-model: { input: 0.14, cacheRead: 0.007, output: 0.28 }
+        # policyOverrides:                 # 可选：官方未来调价时在此追加政策（无需改代码）
+        #   - since: '2026-09-01T00:00:00+08:00'
+        #     label: 示例
+        #     prices:
+        #       deepseek-v4-flash: { input: 5, cacheRead: 0.1, output: 10 }

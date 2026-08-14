@@ -5,11 +5,11 @@
 #   powershell -ExecutionPolicy Bypass -File scripts/install.ps1 [-Profile web] [-DshHome <path>]
 #
 # Notes:
-# - Creates $DshHome/profiles/<Profile>/node_modules/@dsh-local/dsh-web-billing
-#   as a junction pointing at this repository.
-# - Then enable the plugin in $DshHome/profiles/<Profile>/cordis.patch.yml:
-#   add an `insert` row `{ id: web-billing, name: '@dsh-local/dsh-web-billing' }`
-#   (see README.md) and restart `dsh web`.
+# - Creates $DshHome/profiles/<Profile>/node_modules/dsh-web-billing as a
+#   junction pointing at this repository, and appends the package to the
+#   profile's `dsh.profile.bundles` (its cordis.patch.yml then supplies the
+#   plugin row). For distributed installs prefer the official route:
+#   `dsh plugin --profile <name> add github:<owner>/dsh-web-billing`.
 
 param(
     [string]$Profile = "web",
@@ -22,7 +22,7 @@ if ($DshHome -eq "") {
     $DshHome = if ($env:DSH_HOME -and $env:DSH_HOME.Trim() -ne "") { $env:DSH_HOME } else { Join-Path $HOME ".dsh" }
 }
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$linkDir = Join-Path $DshHome "profiles\$Profile\node_modules\@dsh-local"
+$linkDir = Join-Path $DshHome "profiles\$Profile\node_modules"
 $link = Join-Path $linkDir "dsh-web-billing"
 
 New-Item -ItemType Directory -Force -Path $linkDir | Out-Null
@@ -38,9 +38,19 @@ if (Test-Path $link) {
 }
 New-Item -ItemType Junction -Path $link -Target $repoRoot | Out-Null
 Write-Host "Linked: $link -> $repoRoot"
-Write-Host "Next steps:"
-Write-Host "  1. Add the plugin row to $DshHome\profiles\$Profile\cordis.patch.yml:"
-Write-Host "     - insert:"
-Write-Host "         - id: web-billing"
-Write-Host "           name: '@dsh-local/dsh-web-billing'"
-Write-Host "  2. Restart 'dsh web'."
+
+# Register the bundle layer so its cordis.patch.yml supplies the plugin row.
+$manifestPath = Join-Path $DshHome "profiles\$Profile\package.json"
+if (Test-Path $manifestPath) {
+    $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+    $bundles = @($manifest.dsh.profile.bundles)
+    if ($bundles -notcontains "dsh-web-billing") {
+        $manifest.dsh.profile.bundles = @($bundles + "dsh-web-billing")
+        $manifest | ConvertTo-Json -Depth 10 | Set-Content $manifestPath -Encoding utf8
+        Write-Host "Added dsh-web-billing to dsh.profile.bundles in $manifestPath"
+    }
+} else {
+    Write-Host "WARNING: $manifestPath not found; add 'dsh-web-billing' to dsh.profile.bundles manually."
+}
+
+Write-Host "Done. Restart 'dsh web' to activate."
