@@ -9,10 +9,13 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
   `$DSH_HOME/storages/web-billing.json`。
 - **账号余额（host 端）**：复用 provider 的 API key 调用官方 `GET /user/balance`
   （默认 60s 刷新、5s 超时、失败静默降级），CNY/USD 双币种随 `/billing/state` 返回。
+- **本地模型节省统计**：配置 `localProviders` 后，本地（自托管）模型的调用按官方
+  价格计算「名义价值」，实际成本按 `localCostPerM`（默认 0 = 免费），差值即
+  「已节省」——面板与消息角标实时显示（本地消息角标显示 `省¥X`）。
 - **展示（浏览器端）**：每条 assistant 消息动作条上的费用角标（悬停显示
   token 拆分与模型）；会话头部费用角标，点击展开 本会话 / 今日 / 本月 / 累计 /
-  **账户余额** / 按模型 明细与当前计价方式。中文界面显示 ¥，英文界面显示 $，
-  也可用 `displayCurrency` 强制指定。
+  **账户余额** / **已节省** / 按模型 明细与当前计价方式。中文界面显示 ¥，英文
+  界面显示 $，也可用 `displayCurrency` 强制指定。
 - **查询端点（只读，默认仅回环）**：`GET /billing/state`、`GET /billing/session/<id>`。
 
 ## 核心特性
@@ -91,6 +94,8 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 | `officialPricing` | `auto` | `auto`=官方政策自动计价；`off`=只用 `prices` |
 | `prices` | `{}` | 用户价格表（覆盖/兜底，单位 ¥/1M，同时作用于美元价） |
 | `usdPrices` | `{}` | 美元价覆盖（可选，单位 $/1M） |
+| `localProviders` | `[]` | 本地（自托管）provider 名单：调用按官方价计「名义价值」，实际成本按 `localCostPerM`，差值计入「已节省」 |
+| `localCostPerM` | `0` | 本地模型实际单价（¥/1M，所有 token 统一；默认 0 = 免费，可填电费/算力成本） |
 | `policyOverrides` | `[]` | 追加的官方政策条目（`since` 必填，`prices` 或 `peak`+`offPeak`） |
 | `persistPath` | `~/.dsh/storages/web-billing.json` | 账本文件路径 |
 | `maxRecent` | `20000` | 最近流水保留条数 |

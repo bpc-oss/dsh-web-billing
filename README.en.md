@@ -11,10 +11,14 @@ in the browser — **displaying USD when the UI language is English**.
   phase at that moment). Ledger: `$DSH_HOME/storages/web-billing.json`.
   Also queries the official `GET /user/balance` with the provider's API key
   (60s refresh, silent degradation) and reports it with the billing state.
+  **Self-hosted savings**: with `localProviders` configured, local model calls
+  are valued at the official rate ("nominal value") while the actual cost is
+  `localCostPerM` (default 0 = free); the difference is tracked as savings and
+  shown in the UI (local messages show a "saved" chip).
 - **Browser side**: a per-message cost chip in the assistant action strip
   (hover shows token breakdown and model) and a session-header cost badge with
   an expandable panel (session / today / month / total / **account balance** /
-  per-model, plus the active pricing mode).
+  **savings** / per-model, plus the active pricing mode).
 - **Read-only endpoints** (loopback by default): `GET /billing/state`,
   `GET /billing/session/<id>`.
 

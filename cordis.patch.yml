@@ -41,3 +41,8 @@
         #     label: example / 示例
         #     prices:
         #       deepseek-v4-flash: { input: 5, cacheRead: 0.1, output: 10 }
+        # localProviders:                  # optional: self-hosted providers — priced at the official rate as "nominal
+        #   - dgx-spark-vllm               #   value"; actual cost = localCostPerM (default 0), the difference is
+        # localCostPerM: 0                 #   shown as "saved" in the UI / 可选：本地 provider 名单——按官方价计算
+        #                                 #   「名义价值」；实际成本 = localCostPerM（默认 0 = 免费），
+        #                                 #   差值计入 UI 的「已节省」

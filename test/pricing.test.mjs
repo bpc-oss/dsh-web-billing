@@ -11,7 +11,8 @@ import {
   isPeak,
   priceAt,
   priceFor,
-  resolvePrice
+  resolvePrice,
+  unitForProvider
 } from "../lib/pricing.js";
 
 /** 北京时间构造 helper：`2026-08-18T10:00:00+08:00`。 */
@@ -169,4 +170,46 @@ test("resolvePrice merge", () => {
   assert.deepEqual(resolvePrice("m", base, {}), base.m);
   assert.deepEqual(resolvePrice("x", base, { "*": { cny: { input: 7, cacheRead: 7, output: 7 }, usd: { input: 1, cacheRead: 1, output: 1 } } }),
     { cny: { input: 7, cacheRead: 7, output: 7 }, usd: { input: 1, cacheRead: 1, output: 1 } });
+});
+
+test("unnamed model with empty user prices falls back to the policy wildcard", () => {
+  // 用户表为空时，未点名模型不应崩溃（回归：mergeUnit 收到 undefined）。
+  const p = priceAt("deepseek-v4-flash-0731-ablit", at("2026-08-10T10:00:00+08:00"), { prices: {} });
+  assert.deepEqual(cny(p), { input: 1, cacheRead: 0.02, output: 2 });
+  assert.deepEqual(usd(p), { input: 0.14, cacheRead: 0.0028, output: 0.28 });
+  assert.equal(p.mode, "flat");
+});
+
+test("unitForProvider: cloud providers keep nominal pricing", () => {
+  const nominal = priceAt("deepseek-v4-flash", at("2026-08-10T10:00:00+08:00"), {});
+  const split = unitForProvider("deepseek-official", nominal, ["dgx-spark-vllm"], 0);
+  assert.equal(split.isLocal, false);
+  assert.equal(split.unit, nominal);
+  // 未配置 localProviders 时一切照旧
+  const none = unitForProvider("dgx-spark-vllm", nominal, [], 0);
+  assert.equal(none.isLocal, false);
+});
+
+test("unitForProvider: local providers price actual at 0 and keep nominal", () => {
+  const nominal = priceAt("deepseek-v4-flash", at("2026-08-10T10:00:00+08:00"), {});
+  const split = unitForProvider("dgx-spark-vllm", nominal, ["dgx-spark-vllm"], 0);
+  assert.equal(split.isLocal, true);
+  assert.deepEqual(split.unit.cny, { input: 0, cacheRead: 0, output: 0 });
+  assert.deepEqual(split.unit.usd, { input: 0, cacheRead: 0, output: 0 });
+  assert.equal(split.nominal, nominal);
+  // 实际成本可配置（如电费）
+  const costed = unitForProvider("dgx-spark-vllm", nominal, ["dgx-spark-vllm"], 0.05);
+  assert.deepEqual(costed.unit.cny, { input: 0.05, cacheRead: 0.05, output: 0.05 });
+});
+
+test("savings math: local call at official price yields full savings", () => {
+  const nominal = priceAt("deepseek-v4-flash", at("2026-08-10T10:00:00+08:00"), {});
+  const split = unitForProvider("dgx-spark-vllm", nominal, ["dgx-spark-vllm"], 0);
+  const usage = { inputTokens: 1000, cacheReadTokens: 100000, outputTokens: 2000 };
+  const actual = costOf(usage, split.unit);
+  const nominalCost = costOf(usage, split.nominal);
+  assert.equal(actual.cost, 0);
+  assert.equal(nominalCost.cost, (1000 * 1 + 100000 * 0.02 + 2000 * 2) / 1e6);
+  assert.equal(nominalCost.cost - actual.cost, nominalCost.cost);
+  assert.equal(nominalCost.costUsd - actual.costUsd, nominalCost.costUsd);
 });
