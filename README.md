@@ -1,13 +1,16 @@
 # dsh-web-billing
 
 DeepSeek Harness（`dsh web`）的人民币 token 计费插件：**按官方政策自动计价**（内置
-政策时间表，含 2026-08-17 起的峰谷定价），逐条消息记账，浏览器端实时显示费用。
+政策时间表，含 2026-08-17 起的峰谷定价），逐条消息记账，**实时显示账号余额**，
+浏览器端展示费用。
 
 - **记账（host 端）**：订阅 `session/event`，对每条带 usage 的 `assistant/message`
   按消息时刻取价计费，账本持久化到 `$DSH_HOME/storages/web-billing.json`。
+- **账号余额（host 端）**：复用 provider 的 API key 调用官方 `GET /user/balance`
+  （默认 60s 刷新、5s 超时、失败静默降级），随 `/billing/state` 返回。
 - **展示（浏览器端）**：每条 assistant 消息动作条上的费用角标（悬停显示
   token 拆分与模型）；会话头部费用角标，点击展开 本会话 / 今日 / 本月 / 累计 /
-  按模型 明细与当前计价方式。
+  **账户余额** / 按模型 明细与当前计价方式。
 - **查询端点（只读，默认仅回环）**：`GET /billing/state`、`GET /billing/session/<id>`。
 
 ## 核心特性
@@ -104,6 +107,11 @@ dsh web
 | `maxRecent` | `20000` | 最近流水保留条数 |
 | `maxMessagesPerSession` | `2000` | 每会话消息明细保留条数 |
 | `loopbackOnly` | `true` | `/billing` 端点仅允许回环地址访问 |
+| `balance.enabled` | `true` | 是否查询并展示账号余额 |
+| `balance.endpoint` | `https://api.deepseek.com/user/balance` | 余额接口地址（`DEEPSEEK_BASE_URL` 环境变量存在时以其为前缀） |
+| `balance.apiKeyEnv` | `DEEPSEEK_API_KEY` | 解析 API key 的凭证引用（经 `ctx.credentials` 或环境变量） |
+| `balance.refreshMs` | `60000` | 余额刷新间隔 |
+| `balance.timeoutMs` | `5000` | 余额请求超时 |
 
 单价字段语义：`input`=缓存未命中输入，`cacheRead`=缓存命中输入，`output`=输出
 （¥ / 百万 tokens）。
@@ -117,19 +125,22 @@ dsh web
   时补一次 flush。
 - **审计字段**：每条消息明细记录应用的单价（`unitPrice`）与计价模式（`mode`：
   `flat` / `peak` / `offPeak`）。
+- **余额只读**：余额查询只调用官方只读接口，不写任何数据；key 只存在于服务端
+  解析链路，不下发浏览器。
 
 ## 开发
 
 ```powershell
 npm run check   # 语法检查
-npm test        # 定价引擎单元测试（node:test，无依赖）
+npm test        # 定价引擎 + 余额解析单元测试（node:test，无依赖）
 ```
 
 结构：
 
 ```
 lib/pricing.js   定价引擎（纯函数：政策时间表 / 峰谷判定 / 覆盖合并 / 费用计算）
-lib/index.js     host 端：记账、账本、/billing 路由（cordis 插件）
+lib/balance.js   账号余额（响应解析纯函数 + 带缓存/容错的抓取器）
+lib/index.js     host 端：记账、账本、余额轮询、/billing 路由（cordis 插件）
 lib/client.js    浏览器端：费用角标与面板（手写 __ModuleLoader__ bundle，无需构建）
 test/            单元测试
 scripts/         安装脚本
