@@ -17,6 +17,7 @@
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
     "./pricing": "./lib/pricing.js",
+    "./balance": "./lib/balance.js",
     "./package.json": "./package.json"
   },
   "files": [
@@ -39,8 +40,8 @@
     "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6"
   },
   "scripts": {
-    "test": "node --test test/",
-    "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/client.js"
+    "test": "node --test",
+    "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/balance.js && node --check lib/client.js"
   },
   "license": "MIT"
 }
