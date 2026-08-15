@@ -13,7 +13,7 @@ in the browser — **displaying USD when the UI language is English**.
 
 | Mixed session (cloud + local) | Local-only session | Cloud-only session |
 | --- | --- | --- |
-| ![Mixed session panel](docs/screenshots/panel-mixed.png) | ![Local-only panel](docs/screenshots/panel-local.png) | ![Cloud-only panel](docs/screenshots/panel-cloud.png) |
+| ![Mixed session panel](docs/screenshots/panel-mixed-en.png) | ![Local-only panel](docs/screenshots/panel-local-en.png) | ![Cloud-only panel](docs/screenshots/panel-cloud-en.png) |
 
 - **Host side**: subscribes to `session/event` and prices each `assistant/message`
   that carries usage, using the message's own timestamp (policy + peak/off-peak
