@@ -1,10 +1,19 @@
 # dsh-web-billing
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/bpc-oss/dsh-web-billing?style=flat&label=stars&color=2563eb)](https://github.com/bpc-oss/dsh-web-billing/stargazers)
+[![GitHub release](https://img.shields.io/github/v/release/bpc-oss/dsh-web-billing?label=release&color=16a34a)](https://github.com/bpc-oss/dsh-web-billing/releases)
+[![dsh-plugin](https://img.shields.io/badge/dsh-plugin-16a34a)](https://github.com/topics/dsh-plugin)
+
 A RMB/USD token-billing plugin for the DeepSeek Harness web UI (`dsh web`).
 Bills every LLM call automatically against the **official DeepSeek pricing
 policy schedule** (including the peak/off-peak pricing effective 2026-08-17),
 persists a ledger, shows the **account balance**, and renders live cost badges
 in the browser — **displaying USD when the UI language is English**.
+
+| Mixed session (cloud + local) | Local-only session | Cloud-only session |
+| --- | --- | --- |
+| ![Mixed session panel](docs/screenshots/panel-mixed.png) | ![Local-only panel](docs/screenshots/panel-local.png) | ![Cloud-only panel](docs/screenshots/panel-cloud.png) |
 
 - **Host side**: subscribes to `session/event` and prices each `assistant/message`
   that carries usage, using the message's own timestamp (policy + peak/off-peak

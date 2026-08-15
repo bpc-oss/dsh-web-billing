@@ -1,8 +1,17 @@
 # dsh-web-billing
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/bpc-oss/dsh-web-billing?style=flat&label=stars&color=2563eb)](https://github.com/bpc-oss/dsh-web-billing/stargazers)
+[![GitHub release](https://img.shields.io/github/v/release/bpc-oss/dsh-web-billing?label=release&color=16a34a)](https://github.com/bpc-oss/dsh-web-billing/releases)
+[![dsh-plugin](https://img.shields.io/badge/dsh-plugin-16a34a)](https://github.com/topics/dsh-plugin)
+
 DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官方政策自动计价**
 （内置政策时间表，含 2026-08-17 起的峰谷定价），逐条消息记账，**实时显示账号余额**，
 浏览器端展示费用（**界面语言自动切换 ¥/$**）。
+
+| 混合会话（云端+本地） | 纯本地会话 | 纯云端会话 |
+| --- | --- | --- |
+| ![混合会话面板](docs/screenshots/panel-mixed.png) | ![纯本地面板](docs/screenshots/panel-local.png) | ![纯云端面板](docs/screenshots/panel-cloud.png) |
 
 - **记账（host 端）**：订阅 `session/event`，对每条带 usage 的 `assistant/message`
   按消息时刻取价计费（CNY 与 USD 双币种，官方美元价独立发布），账本持久化到
