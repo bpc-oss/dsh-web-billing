@@ -32,10 +32,10 @@ in the browser — **displaying USD when the UI language is English**.
   are valued at the official rate ("nominal value") while the actual cost is
   `localCostPerM` (default 0 = free); the difference is tracked as savings and
   shown in the UI (local messages show a "saved" chip).
-- **Browser side**: the header always shows compact local DSH token and cost
+- **Browser side**: the composer's right-hand tool row always shows compact local DSH token and cost
   totals, even when the current session has no ledger row; each assistant
   message also gets a cost chip (hover shows token breakdown and model). The
-  header badge opens an expandable panel (session / today / month / total / **account balance** /
+  badge opens an expandable panel (session / today / month / total / **account balance** /
   **savings** / per-model, plus the active pricing mode).
 - **Read-only endpoints** (loopback by default): `GET /billing/state`,
   `GET /billing/session/<id>`.
