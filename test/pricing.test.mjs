@@ -9,6 +9,7 @@ import {
   activePolicy,
   costOf,
   isPeak,
+  nextPricingTransition,
   priceAt,
   priceFor,
   resolvePrice,
@@ -87,6 +88,21 @@ test("isPeak boundaries and timezone handling", () => {
   assert.equal(isPeak(at("2026-08-18T23:00:00+08:00"), "Asia/Shanghai", [[23, 24]]), true);
   // 非法时区不抛错
   assert.equal(isPeak(at("2026-08-18T10:00:00+08:00"), "Not/AZone"), false);
+});
+
+test("nextPricingTransition crosses policy activation and later peak boundaries", () => {
+  assert.equal(
+    new Date(nextPricingTransition(at("2026-08-16T21:24:00+08:00"))).toISOString(),
+    "2026-08-16T16:00:00.000Z"
+  );
+  assert.equal(
+    new Date(nextPricingTransition(at("2026-08-18T10:30:00+08:00"))).toISOString(),
+    "2026-08-18T04:00:00.000Z"
+  );
+  assert.equal(
+    new Date(nextPricingTransition(at("2026-08-18T12:30:00+08:00"))).toISOString(),
+    "2026-08-18T06:00:00.000Z"
+  );
 });
 
 test("user overrides: exact model wins; '*' only fills gaps (both currencies)", () => {

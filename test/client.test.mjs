@@ -85,7 +85,7 @@ const totals = {
   outputTokens: 35027,
 }
 
-function renderBadge(Badge, dictionaries, { open = false } = {}) {
+function renderBadge(Badge, dictionaries, { open = false, balance, pricing } = {}) {
   const value = {
     displayCurrency: 'CNY',
     symbol: '¥',
@@ -94,8 +94,8 @@ function renderBadge(Badge, dictionaries, { open = false } = {}) {
     today: totals,
     month: totals,
     byModel: {},
-    pricing: { mode: 'auto', activePolicy: null },
-    balance: { status: 'ready', balance: { cny: { total: 246.67, granted: 0, toppedUp: 246.67 }, usd: null } },
+    pricing: pricing ?? { mode: 'auto', activePolicy: null },
+    balance: balance ?? { status: 'ready', balance: { cny: { total: 246.67, granted: 0, toppedUp: 246.67 }, usd: null } },
   }
   const t = key => dictionaries.zh[key] ?? key
   return Badge({
@@ -128,4 +128,56 @@ test('expanded panel states that local DSH estimates are not the official accoun
   assert.match(textOf(tree), /输入 240229/)
   assert.match(textOf(tree), /缓存命中 2902144/)
   assert.match(textOf(tree), /输出 35027/)
+  assert.match(textOf(tree), /DeepSeek 官方余额 ¥246\.67/)
+})
+
+test('loading is not falsely labelled unavailable', async () => {
+  const loaded = await loadBadge({ open: true })
+  const tree = renderBadge(loaded.Badge, loaded.dictionaries, {
+    open: true,
+    balance: { status: 'loading', balance: undefined, error: null },
+  })
+  assert.match(textOf(tree), /DeepSeek 官方余额 查询中…/)
+  assert.doesNotMatch(textOf(tree), /DeepSeek 官方余额 不可用/)
+})
+
+test('a transient refresh failure keeps the exact cached official balance', async () => {
+  const loaded = await loadBadge({ open: true })
+  const tree = renderBadge(loaded.Badge, loaded.dictionaries, {
+    open: true,
+    balance: {
+      status: 'error',
+      balance: { cny: { total: 246.67, granted: 0, toppedUp: 246.67 }, usd: null },
+      error: 'temporary-timeout',
+    },
+  })
+  assert.match(textOf(tree), /DeepSeek 官方余额 ¥246\.67 \(缓存值\)/)
+  assert.doesNotMatch(textOf(tree), /DeepSeek 官方余额 不可用/)
+})
+
+test('shows the current pricing phase, exact unit prices, next switch, and hourly refresh', async () => {
+  const loaded = await loadBadge({ open: true })
+  const tree = renderBadge(loaded.Badge, loaded.dictionaries, {
+    open: true,
+    pricing: {
+      mode: 'auto',
+      timezone: 'Asia/Shanghai',
+      activePolicy: { kind: 'peak-offpeak', label: '峰谷定价' },
+      effectiveNow: 'peak',
+      nextTransitionAt: Date.parse('2026-08-18T12:00:00+08:00'),
+      currentUnitPrices: [
+        {
+          model: 'deepseek-v4-flash',
+          mode: 'peak',
+          cny: { input: 3, cacheRead: 0.1, output: 9 },
+          usd: { input: 0.44, cacheRead: 0.014, output: 1.32 },
+        },
+      ],
+    },
+  })
+  const text = textOf(tree)
+  assert.match(text, /当前计费时段 · 每百万 tokens/)
+  assert.match(text, /deepseek-v4-flash · 高峰/)
+  assert.match(text, /命中 ¥0\.10 · 未命中 ¥3\.00 · 输出 ¥9\.00/)
+  assert.match(text, /下次切换（北京时间） 08\/18 12:00 · 每小时自动刷新/)
 })

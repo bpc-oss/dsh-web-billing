@@ -4,7 +4,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseBalanceResponse } from "../lib/balance.js";
+import { BalanceFetcher, parseBalanceResponse } from "../lib/balance.js";
 
 test("parses the official CNY payload", () => {
   const view = parseBalanceResponse({
@@ -68,4 +68,30 @@ test("tolerates missing/garbage balance fields as zero", () => {
   assert.equal(weird.cny.total, 0);
   assert.equal(weird.cny.granted, 0);
   assert.equal(weird.cny.toppedUp, 100000);
+});
+
+test("keeps the last proven balance when a later refresh fails", async () => {
+  const fetcher = new BalanceFetcher({
+    resolveKey: async () => "unused",
+    endpoint: "https://example.invalid/user/balance"
+  });
+  const proven = {
+    cny: { isAvailable: true, currency: "CNY", total: 246.67, granted: 0, toppedUp: 246.67 },
+    usd: null
+  };
+  let attempt = 0;
+  fetcher.fetchOnce = async () => {
+    attempt += 1;
+    if (attempt === 1) return proven;
+    throw new Error("temporary-timeout");
+  };
+
+  await fetcher.refresh();
+  assert.equal(fetcher.getSnapshot().status, "ready");
+  assert.deepEqual(fetcher.getSnapshot().balance, proven);
+
+  await fetcher.refresh();
+  assert.equal(fetcher.getSnapshot().status, "error");
+  assert.equal(fetcher.getSnapshot().error, "temporary-timeout");
+  assert.deepEqual(fetcher.getSnapshot().balance, proven);
 });

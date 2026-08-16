@@ -24,7 +24,8 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
   按消息时刻取价计费（CNY 与 USD 双币种，官方美元价独立发布），账本持久化到
   `$DSH_HOME/storages/web-billing.json`。
 - **账号余额（host 端）**：复用 provider 的 API key 调用官方 `GET /user/balance`
-  （默认 60s 刷新、5s 超时、失败静默降级），CNY/USD 双币种随 `/billing/state` 返回。
+  （默认 60s 刷新、5s 超时、瞬时失败保留最近一次已验证余额），CNY/USD 双币种随
+  `/billing/state` 返回。
 - **本地模型节省统计**：配置 `localProviders` 后，本地（自托管）模型的调用按官方
   价格计算「名义价值」，实际成本按 `localCostPerM`（默认 0 = 免费），差值即
   「已节省」——面板与消息角标实时显示（本地消息角标显示 `省¥X`）。
@@ -33,6 +34,9 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
   token 拆分与模型）。点击费用角标展开 本会话 / 今日 / 本月 / 累计 /
   **账户余额** / **已节省** / 按模型 明细与当前计价方式。中文界面显示 ¥，英文
   界面显示 $，也可用 `displayCurrency` 强制指定。
+- **当前峰谷提示**：面板列出 V4 Flash/Pro 当前“固定价 / 高峰 / 空闲”状态、缓存
+  命中/未命中/输出单价与下一切换时间；状态至少每小时自动刷新，账本轮询期间也会
+  及时更新。
 - **查询端点（只读，默认仅回环）**：`GET /billing/state`、`GET /billing/session/<id>`。
 
 ## 核心特性
@@ -141,7 +145,8 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 - **审计字段**：每条消息明细记录应用的单价（`unitPrice`）与计价模式（`mode`：
   `flat` / `peak` / `offPeak`）。
 - **余额只读**：余额查询只调用官方只读接口，不写任何数据；key 只存在于服务端
-  解析链路，不下发浏览器。
+  解析链路，不下发浏览器。初次查询显示“查询中”，瞬时失败显示缓存值，不再把这
+  两种状态误报成“官方余额不可用”。
 
 ## 开发
 
