@@ -53,6 +53,10 @@
     "@deepseek-ai/schemastery": "^3.18.1",
     "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6"
   },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-invariants": ">=0.1.0-rc.6 <0.2.0"
+  },
   "scripts": {
     "test": "node --test",
     "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/balance.js && node --check lib/client.js",
