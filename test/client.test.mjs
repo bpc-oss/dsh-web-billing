@@ -4,6 +4,15 @@ import test from 'node:test'
 import vm from 'node:vm'
 
 const CLIENT_URL = new URL('../lib/client.js', import.meta.url)
+const PACKAGE_URL = new URL('../package.json', import.meta.url)
+
+test('declares the client owners required before billing registers conversation slots', async () => {
+  const manifest = JSON.parse(await readFile(PACKAGE_URL, 'utf8'))
+  assert.deepEqual(manifest.dsh.client.inject, [
+    '@deepseek-ai/dsh-client-locale',
+    '@deepseek-ai/dsh-client-ui-conversation',
+  ])
+})
 
 function textOf(value) {
   if (value === null || value === undefined || typeof value === 'boolean') return ''
