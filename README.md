@@ -11,6 +11,11 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
 （内置政策时间表，含 2026-08-17 起的峰谷定价），逐条消息记账，**实时显示账号余额**，
 浏览器端展示费用（**界面语言自动切换 ¥/$**）。
 
+> 这里的 token 与费用是 **DSH 本地统计**：只包含本插件安装后、当前
+> `$DSH_HOME` 捕获到的已完成 `assistant/message`。它不是 DeepSeek 账号的官方
+> 用量账单；官方余额来自 `/user/balance`，而跨 API key / 应用的消费核对应以
+> DeepSeek 控制台 Usage 导出为准。
+
 | 混合会话（云端+本地） | 纯本地会话 | 纯云端会话 |
 | --- | --- | --- |
 | ![混合会话面板](docs/screenshots/panel-mixed.png) | ![纯本地面板](docs/screenshots/panel-local.png) | ![纯云端面板](docs/screenshots/panel-cloud.png) |
@@ -23,8 +28,9 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
 - **本地模型节省统计**：配置 `localProviders` 后，本地（自托管）模型的调用按官方
   价格计算「名义价值」，实际成本按 `localCostPerM`（默认 0 = 免费），差值即
   「已节省」——面板与消息角标实时显示（本地消息角标显示 `省¥X`）。
-- **展示（浏览器端）**：每条 assistant 消息动作条上的费用角标（悬停显示
-  token 拆分与模型）；会话头部费用角标，点击展开 本会话 / 今日 / 本月 / 累计 /
+- **展示（浏览器端）**：会话头部始终显示 DSH 本地累计 token 与估算费用，即使
+  当前会话尚未产生记账记录；每条 assistant 消息动作条也有费用角标（悬停显示
+  token 拆分与模型）。点击头部角标展开 本会话 / 今日 / 本月 / 累计 /
   **账户余额** / **已节省** / 按模型 明细与当前计价方式。中文界面显示 ¥，英文
   界面显示 $，也可用 `displayCurrency` 强制指定。
 - **查询端点（只读，默认仅回环）**：`GET /billing/state`、`GET /billing/session/<id>`。
@@ -122,6 +128,10 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 （¥ / 百万 tokens）。
 
 ## 记账正确性
+
+- **统计范围**：只统计当前 DSH host 实际收到且带 usage 的完成消息；安装前调用、
+  其他 `$DSH_HOME`、其他程序或 API key 的调用不会进入本地账本，因此不能拿本地
+  合计直接替代 DeepSeek 官网账单。
 
 - **幂等**：以 `(sessionId, messageId)` 为主键，重复/重放事件只覆盖明细，绝不
   重复累计（多进程、多次重启实测验证）。

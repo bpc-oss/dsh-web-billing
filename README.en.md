@@ -13,6 +13,12 @@ policy schedule** (including the peak/off-peak pricing effective 2026-08-17),
 persists a ledger, shows the **account balance**, and renders live cost badges
 in the browser — **displaying USD when the UI language is English**.
 
+> Token and cost figures are a **local DSH ledger**: only completed
+> `assistant/message` events captured in this `$DSH_HOME` after the plugin was
+> installed. They are not the official DeepSeek account invoice. The balance
+> comes from `/user/balance`; reconcile usage across API keys and applications
+> with the DeepSeek console Usage export.
+
 | Mixed session (cloud + local) | Local-only session | Cloud-only session |
 | --- | --- | --- |
 | ![Mixed session panel](docs/screenshots/panel-mixed-en.png) | ![Local-only panel](docs/screenshots/panel-local-en.png) | ![Cloud-only panel](docs/screenshots/panel-cloud-en.png) |
@@ -26,9 +32,10 @@ in the browser — **displaying USD when the UI language is English**.
   are valued at the official rate ("nominal value") while the actual cost is
   `localCostPerM` (default 0 = free); the difference is tracked as savings and
   shown in the UI (local messages show a "saved" chip).
-- **Browser side**: a per-message cost chip in the assistant action strip
-  (hover shows token breakdown and model) and a session-header cost badge with
-  an expandable panel (session / today / month / total / **account balance** /
+- **Browser side**: the header always shows compact local DSH token and cost
+  totals, even when the current session has no ledger row; each assistant
+  message also gets a cost chip (hover shows token breakdown and model). The
+  header badge opens an expandable panel (session / today / month / total / **account balance** /
   **savings** / per-model, plus the active pricing mode).
 - **Read-only endpoints** (loopback by default): `GET /billing/state`,
   `GET /billing/session/<id>`.
