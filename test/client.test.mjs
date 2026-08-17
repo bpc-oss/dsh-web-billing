@@ -122,10 +122,10 @@ test('mounts the cumulative badge in the sidebar instead of the crowded composer
   assert.doesNotMatch(source, /ctx\.slots\.inject\("conversation\.input\.right"/)
 })
 
-test('uses an opaque light/dark surface for the expanded billing panel', async () => {
+test('composites the active theme over an opaque light/dark billing underlay', async () => {
   const source = await readFile(CLIENT_URL, 'utf8')
-  assert.match(source, /const opaquePanelCss = "\.b8l_panel\{background:var\(--dsw-static-neutral-bluish-00,#fff\)\}/)
-  assert.match(source, /body\[data-ds-dark-theme\] \.b8l_panel\{background:var\(--dsw-static-neutral-bluish-950,#151517\)\}/)
+  assert.match(source, /\.b8l_panel\{background:linear-gradient\(var\(--dsw-alias-bg-base,transparent\),var\(--dsw-alias-bg-base,transparent\)\),#fff\}/)
+  assert.match(source, /body\[data-ds-dark-theme\] \.b8l_panel\{background:linear-gradient\(var\(--dsw-alias-bg-base,transparent\),var\(--dsw-alias-bg-base,transparent\)\),#151517\}/)
   assert.match(source, /tag\.textContent = `\$\{css\}\$\{sidebarCss\}\$\{opaquePanelCss\}`/)
 })
 
