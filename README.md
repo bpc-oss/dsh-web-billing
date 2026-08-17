@@ -11,9 +11,9 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
 （内置政策时间表，含 2026-08-17 起的峰谷定价），逐条消息记账，**实时显示账号余额**，
 浏览器端展示费用（**界面语言自动切换 ¥/$**）。
 
-| 混合会话（云端+本地） | 纯本地会话 | 纯云端会话 |
-| --- | --- | --- |
-| ![混合会话面板](docs/screenshots/panel-mixed.png) | ![纯本地面板](docs/screenshots/panel-local.png) | ![纯云端面板](docs/screenshots/panel-cloud.png) |
+| 本会话角标（点击查看明细） | 设置 → 费用汇总页 |
+| --- | --- |
+| ![本会话角标](docs/screenshots/badge-session.png) | ![设置汇总页](docs/screenshots/settings-summary.png) |
 
 - **记账（host 端）**：订阅 `session/event`，对每条带 usage 的 `assistant/message`
   按消息时刻取价计费（CNY 与 USD 双币种，官方美元价独立发布），账本持久化到
@@ -22,11 +22,16 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
   （默认 60s 刷新、5s 超时、失败静默降级），CNY/USD 双币种随 `/billing/state` 返回。
 - **本地模型节省统计**：配置 `localProviders` 后，本地（自托管）模型的调用按官方
   价格计算「名义价值」，实际成本按 `localCostPerM`（默认 0 = 免费），差值即
-  「已节省」——面板与消息角标实时显示（本地消息角标显示 `省¥X`）。
-- **展示（浏览器端）**：每条 assistant 消息动作条上的费用角标（悬停显示
-  token 拆分与模型）；会话头部费用角标，点击展开 本会话 / 今日 / 本月 / 累计 /
-  **账户余额** / **已节省** / 按模型 明细与当前计价方式。中文界面显示 ¥，英文
-  界面显示 $，也可用 `displayCurrency` 强制指定。
+  「已节省」——角标与设置页实时显示（本地消息角标显示 `省¥X`）。
+- **Coding plan 计费**：内置 DSH 预设的全部 coding plan 官方美元价
+  （`opencode-go` / `opencode` / `kimi-coding` 等，取自 DeepSeek Harness 官方内置
+  catalog），按 **provider 路由定价**——用户无论用哪个 coding plan 的哪个模型，都能
+  准确计费，不再错误套用 DeepSeek 峰谷价。
+- **展示（浏览器端）**：每条 assistant 消息动作条上的费用角标；会话头部角标**只
+  显示本会话**的花费/节省，点击弹出本会话的按模型与 token 明细（快捷方式）；今日 /
+  本月 / 累计 / 账户余额 / 按模型 / 会话 / 按天历史等**全部汇总移到
+  `设置 → 费用` 查看页**。中文界面显示 ¥，英文界面显示 $，也可用
+  `displayCurrency` 强制指定。
 - **查询端点（只读，默认仅回环）**：`GET /billing/state`、`GET /billing/session/<id>`。
 
 ## 核心特性
@@ -64,6 +69,30 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
 
 > ⚠️ 政策时间表策展自官方公告（[DeepSeek API Docs](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)），
 > 请以官方页面为准；发现偏差欢迎 PR 修正。
+
+### Coding plan 计费（DSH 预设全覆盖）
+
+除了 DeepSeek 官方 API，你还可以在 DSH 里接入各种 **coding plan**（订阅制编码套餐），
+如 `opencode-go` / `opencode` / `kimi-coding`，以及 qwen / xiaomi / z.ai 的 token 订阅包。
+本插件内置**这些平台的全部官方美元单价**（取自 DeepSeek Harness 官方内置 pi-ai
+catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
+
+- **平台官方价**（`opencode-go` / `opencode` / `kimi-coding`）：每个模型的美元单价
+  （$/1M）来自平台官方发布。人民币展示价 = 美元官方价 × `codingUsdCnyRate`
+  （默认参考汇率 7.2，仅用于展示换算；**不影响 DeepSeek 官方价**——那有官方人民币
+  价，不使用此汇率）。
+- **订阅 token 包**（`qwen-token-plan` / `xiaomi-token-plan` / `zai-coding`）：平台
+  不公布逐 token 单价，属订阅额度内含，调用按 **0 元**计。
+- **归属规则**：消息按 `(provider, model)` 双双命中对应平台表才走该路由；未命中
+  的模型仍按 DeepSeek 官方政策链（含峰谷）计费。这样同一个模型名（如
+  `glm-5.2`）在 opencode-go 下按 opencode 官方价、在直接 API 下按各自平台价，
+  互不串价。
+- **自动跟随官方**：价格表可由 `node scripts/sync-coding-plans.mjs` 从本机 DSH
+  内置 catalog 重新生成——升级 DSH 后跑一次即可跟进官方最新价；来源版本（pi-ai
+  版本 + 生成时间）会进入计价规则指纹，表变化后重启自动重估历史记录。
+
+> 与 DeepSeek 官方价不同，coding plan 只有官方美元价，没有官方人民币价；人民币
+> 金额是按 `codingUsdCnyRate` 的**参考换算**（可配置），美元金额恒为官方真值。
 
 ## 安装
 
@@ -107,6 +136,7 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 | `usdPrices` | `{}` | 美元价覆盖（可选，单位 $/1M） |
 | `localProviders` | `[]` | 本地（自托管）provider 名单：调用按官方价计「名义价值」，实际成本按 `localCostPerM`，差值计入「已节省」 |
 | `localCostPerM` | `0` | 本地模型实际单价（¥/1M，所有 token 统一；默认 0 = 免费，可填电费/算力成本） |
+| `codingUsdCnyRate` | `7.2` | coding plan 美元价的参考人民币汇率（$→¥，仅展示换算；DeepSeek 官方价不受影响） |
 | `policyOverrides` | `[]` | 追加的官方政策条目（`since` 必填，`prices` 或 `peak`+`offPeak`） |
 | `persistPath` | `~/.dsh/storages/web-billing.json` | 账本文件路径 |
 | `maxRecent` | `20000` | 最近流水保留条数 |
@@ -143,12 +173,13 @@ npm test        # 定价引擎 + 余额解析单元测试（node:test，无依�
 结构：
 
 ```
-lib/pricing.js   定价引擎（纯函数：政策时间表 / 峰谷判定 / 覆盖合并 / 费用计算）
-lib/balance.js   账号余额（响应解析纯函数 + 带缓存/容错的抓取器）
-lib/index.js     host 端：记账、账本、余额轮询、/billing 路由（cordis 插件）
-lib/client.js    浏览器端：费用角标与面板（手写 __ModuleLoader__ bundle，无需构建）
-test/            单元测试
-scripts/         安装脚本
+lib/pricing.js    定价引擎（纯函数：政策时间表 / 峰谷判定 / 覆盖合并 / coding plan 路由 / 费用计算）
+lib/coding-plans.js  DSH 预设 coding plan 官方美元价（由 scripts/sync-coding-plans.mjs 生成，勿手改）
+lib/balance.js    账号余额（响应解析纯函数 + 带缓存/容错的抓取器）
+lib/index.js      host 端：记账、账本、余额轮询、/billing 路由（cordis 插件）
+lib/client.js     浏览器端：会话角标、消息角标、设置→费用汇总页（手写 __ModuleLoader__ bundle，无需构建）
+test/             单元测试
+scripts/          sync-coding-plans.mjs（从 DSH pi-ai catalog 同步 coding plan 价表）、安装脚本
 ```
 
 浏览器端 bundle 为手写模块（与 DSH 官方 client 插件同格式），修改后**刷新页面 +

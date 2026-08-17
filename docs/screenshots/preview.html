@@ -1,0 +1,251 @@
+<!doctype html>
+<!-- 预览渲染（供 docs 截图）：会话角标 + 设置→费用汇总页（中/英）。
+     数据为演示用 mock，非真实账本。每张图的容器都加了明确的 file 标记便于脚本定位。 -->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{--dsw-alias-bg-primary:#ffffff;--dsw-alias-bg-base:#ffffff;--dsw-alias-bg-layer-1:#ffffff;
+    --dsw-alias-bg-layer-2:#f4f4f5;--dsw-alias-bg-layer-3:#ececee;
+    --dsw-alias-border-l1:#e4e4e7;--dsw-alias-border-secondary:#e4e4e7;
+    --dsw-alias-label-primary:#18181b;--dsw-alias-label-secondary:#3f3f46;
+    --dsw-alias-label-tertiary:#71717a;--dsw-alias-interactive-bg-hover:#f4f4f5;
+    --dsw-alias-button-elevated-fill:#ffffff;--dsw-alias-state-business-primary:#2563eb;
+    --dsw-alias-state-success-primary:#16a34a;--dsw-alias-state-error-primary:#dc2626;
+    --dsw-alias-state-warn-primary:#d97706;--dsw-alias-label-primary-inverted:#ffffff;
+    --dsw-shadow-popover:0 8px 24px rgba(0,0,0,.12)}
+  body{margin:0;padding:24px;background:#fff;font-family:-apple-system,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;display:flex;flex-direction:column;gap:48px}
+  .scene{border:1px dashed #e4e4e7;border-radius:16px;padding:24px;background:#fbfbfc}
+  .scene-title{font-size:13px;color:#52525b;margin:0 0 16px;font-weight:600}
+  /* 会话头模拟容器：卡片顶部一条 header 行 */
+  .header-mock{display:flex;align-items:center;justify-content:flex-end;gap:10px;border:1px solid #e4e4e7;border-radius:12px;padding:12px 16px;background:#fff;max-width:420px}
+  /* badge */
+  .b8l_badge{display:inline-flex;align-items:center;gap:4px;color:#52525b;cursor:pointer;background:#f4f4f5;border:none;border-radius:12px;padding:2px 10px;font-size:12px;line-height:20px;white-space:nowrap;font-family:inherit}
+  .b8l_badgeOpen{color:#18181b}
+  .b8l_wrap{position:relative;display:inline-flex}
+  .b8l_panel{position:absolute;top:calc(100% + 6px);right:0;z-index:30;box-sizing:border-box;background:#fff;border:1px solid #e4e4e7;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);width:300px;padding:12px 14px;font-family:inherit;font-size:12px;color:#18181b}
+  .b8l_panelOnHeader{position:relative;top:8px;right:0;margin-left:auto}
+  .b8l_head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .b8l_headLabel{color:#71717a;font-size:12px;white-space:nowrap}
+  .b8l_headValues{display:flex;align-items:baseline;gap:10px}
+  .b8l_headValue{color:#18181b;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;line-height:24px;white-space:nowrap}
+  .b8l_headValue.b8l_save{color:#16a34a}
+  .b8l_headValue.b8l_small{font-size:14px;font-weight:600}
+  .b8l_sub{display:flex;flex-wrap:wrap;gap:4px 14px;color:#71717a;font-size:11px;line-height:16px;margin-top:2px}
+  .b8l_sep{border-top:1px solid #e4e4e7;margin:9px 0}
+  .b8l_section{font-size:11px;color:#71717a;margin:6px 0 4px}
+  .b8l_modelRow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;font-size:12px;color:#18181b}
+  .b8l_modelRow.b8l_save .b8l_cost{color:#16a34a}
+  .b8l_footer{font-size:11px;color:#71717a;margin-top:2px}
+  /* settings page */
+  .settingsRoot{display:flex;flex-direction:column;gap:18px;padding:2px 2px 24px;font-size:13px;color:#18181b;max-width:680px;font-family:inherit}
+  .settingsRoot h3{font-size:14px;margin:0 0 12px}
+  .b8l_cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:640px){.b8l_cards{grid-template-columns:1fr}}
+  .b8l_card{border:1px solid #e4e4e7;border-radius:12px;padding:14px 16px;background:#fff}
+  .b8l_cardTitle{font-size:12px;color:#71717a;margin:0 0 8px}
+  .b8l_cardValue{font-size:20px;line-height:28px;font-weight:600}
+  .b8l_cardValue.b8l_save{color:#16a34a}
+  .b8l_cardSub{font-size:12px;color:#71717a;margin-top:4px}
+  .b8l_hint{font-size:12px;color:#71717a;margin:0;line-height:20px}
+  .b8l_route{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#71717a;border:1px solid #e4e4e7;border-radius:999px;padding:1px 8px}
+  .b8l_sectionTitle{font-size:13px;font-weight:600;margin:0 0 8px}
+  .b8l_table{width:100%;border-collapse:collapse;font-size:12px}
+  .b8l_table th,.b8l_table td{text-align:left;padding:7px 10px;border-bottom:1px solid #e4e4e7;white-space:nowrap}
+  .b8l_table th{color:#71717a;font-weight:500}
+  .b8l_table td.num,.b8l_table th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .b8l_table tr:last-child td{border-bottom:none}
+  .b8l_scroll{max-height:260px;overflow:auto;border:1px solid #e4e4e7;border-radius:10px}
+  .b8l_empty{font-size:12px;color:#71717a;padding:8px 0}
+  #badge-zh,#badge-en,#settings-zh,#settings-en{display:none}
+  body[data-show="badge-zh"] #badge-zh{display:block}
+  body[data-show="badge-en"] #badge-en{display:block}
+  body[data-show="settings-zh"] #settings-zh{display:block}
+  body[data-show="settings-en"] #settings-en{display:block}
+</style>
+<script>
+  // 用 URL hash（如 #badge-zh）切换展示的 scene，供截图脚本逐格捕获。
+  function applyHash() {
+    const show = (location.hash || "#badge-zh").slice(1);
+    if (["badge-zh", "badge-en", "settings-zh", "settings-en"].includes(show)) {
+      document.body.dataset.show = show;
+    }
+  }
+  addEventListener("hashchange", applyHash);
+  addEventListener("DOMContentLoaded", applyHash);
+</script>
+</head>
+<body data-show="badge-zh">
+
+<!-- ================= 会话角标 中文 ================= -->
+<div id="badge-zh" class="scene">
+  <p class="scene-title">会话头部角标 · 点击展开本会话明细（中文）</p>
+  <div class="header-mock">
+    <span style="font-size:12px;color:#a1a1aa;margin-right:auto">会话标题占位</span>
+    <div class="b8l_wrap">
+      <button class="b8l_badge b8l_badgeOpen">¥1.88</button>
+      <div class="b8l_panel b8l_panelOnHeader">
+        <div class="b8l_head">
+          <span class="b8l_headLabel">本会话费用</span>
+          <span class="b8l_headValues">
+            <span class="b8l_headValue">¥1.88</span>
+            <span class="b8l_headValue b8l_save b8l_small">已节省</span>
+          </span>
+        </div>
+        <div class="b8l_sub"><span>调用次数 3</span></div>
+        <div class="b8l_sep"></div>
+        <div class="b8l_section">按模型</div>
+        <div class="b8l_modelRow"><span>glm-5.2</span><span>¥1.88</span></div>
+        <div class="b8l_modelRow"><span>deepseek-v4-flash</span><span>¥0.42</span></div>
+        <div class="b8l_sep"></div>
+        <div class="b8l_footer">汇总请查看 设置 → 费用</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 会话角标 英文 ================= -->
+<div id="badge-en" class="scene">
+  <p class="scene-title">Session header badge · click for this session's breakdown (English)</p>
+  <div class="header-mock">
+    <span style="font-size:12px;color:#a1a1aa;margin-right:auto">Session title placeholder</span>
+    <div class="b8l_wrap">
+      <button class="b8l_badge b8l_badgeOpen">$0.26</button>
+      <div class="b8l_panel b8l_panelOnHeader">
+        <div class="b8l_head">
+          <span class="b8l_headLabel">Session cost</span>
+          <span class="b8l_headValues">
+            <span class="b8l_headValue">$0.26</span>
+            <span class="b8l_headValue b8l_save b8l_small">Saved</span>
+          </span>
+        </div>
+        <div class="b8l_sub"><span>Calls 3</span></div>
+        <div class="b8l_sep"></div>
+        <div class="b8l_section">By model</div>
+        <div class="b8l_modelRow"><span>glm-5.2</span><span>$0.26</span></div>
+        <div class="b8l_modelRow"><span>deepseek-v4-flash</span><span>$0.06</span></div>
+        <div class="b8l_sep"></div>
+        <div class="b8l_footer">Summary: Settings → Cost</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 设置汇总页 中文 ================= -->
+<div id="settings-zh" class="scene">
+  <div class="settingsRoot">
+    <h3>费用</h3>
+    <div class="b8l_cards">
+      <div class="b8l_card"><p class="b8l_cardTitle">今日</p><div class="b8l_cardValue">¥8.60</div><div class="b8l_cardValue b8l_save">省 ¥35.40</div><div class="b8l_cardSub">调用次数 128</div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">本月</p><div class="b8l_cardValue">¥23.10</div><div class="b8l_cardValue b8l_save">省 ¥98.60</div><div class="b8l_cardSub">调用次数 412</div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">累计</p><div class="b8l_cardValue">¥66.80</div><div class="b8l_cardValue b8l_save">省 ¥281.20</div><div class="b8l_cardSub">调用次数 1,507</div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">账户余额</p><div class="b8l_cardValue">¥0.00</div><div class="b8l_cardSub">余额不可用</div></div>
+    </div>
+    <div class="b8l_sep"></div>
+    <p class="b8l_hint">官方政策自动计价 · 当前为空闲时段</p>
+    <p class="b8l_hint">内置 coding plan（DSH 预设）：参考汇率 $1 = ¥7.2 · 价表来源 pi-ai v0.82.1</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <span class="b8l_route">OpenCode GO</span>
+      <span class="b8l_route">OpenCode Zen</span>
+      <span class="b8l_route">Kimi Coding</span>
+      <span class="b8l_route" style="opacity:.55">Qwen Token Plan</span>
+    </div>
+    <div class="b8l_sep"></div>
+    <p class="b8l_sectionTitle">按模型</p>
+    <div class="b8l_scroll">
+      <table class="b8l_table">
+        <thead><tr><th>模型</th><th class="num">调用次数</th><th class="num">花费</th><th class="num">省</th></tr></thead>
+        <tbody>
+          <tr><td>glm-5.2</td><td class="num">97</td><td class="num">¥57.13</td><td class="num">—</td></tr>
+          <tr><td>deepseek-v4-flash</td><td class="num">180</td><td class="num">¥32.40</td><td class="num">—</td></tr>
+          <tr><td>deepseek-v4-flash-0731-ablit</td><td class="num">312</td><td class="num">¥0.00</td><td class="num">省 ¥126.80</td></tr>
+          <tr><td>mimo-v2.5-free</td><td class="num">64</td><td class="num">¥0.00</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="b8l_sep"></div>
+    <p class="b8l_sectionTitle">会话</p>
+    <div class="b8l_scroll">
+      <table class="b8l_table">
+        <thead><tr><th>会话</th><th class="num">调用次数</th><th class="num">花费</th><th class="num">省</th></tr></thead>
+        <tbody>
+          <tr><td>session-d728e814…</td><td class="num">7</td><td class="num">¥0.00</td><td class="num">省 ¥0.07</td></tr>
+          <tr><td>session-9c94f3f2…</td><td class="num">757</td><td class="num">¥70.20</td><td class="num">—</td></tr>
+          <tr><td>session-8bdfce78…</td><td class="num">3,479</td><td class="num">¥37.65</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="b8l_sep"></div>
+    <p class="b8l_sectionTitle">按天历史</p>
+    <div class="b8l_scroll">
+      <table class="b8l_table">
+        <thead><tr><th>日期</th><th class="num">调用次数</th><th class="num">花费</th><th class="num">省</th></tr></thead>
+        <tbody>
+          <tr><td>2026-08-17</td><td class="num">812</td><td class="num">¥40.12</td><td class="num">—</td></tr>
+          <tr><td>2026-08-16</td><td class="num">695</td><td class="num">¥26.68</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 设置汇总页 英文 ================= -->
+<div id="settings-en" class="scene">
+  <div class="settingsRoot">
+    <h3>Cost</h3>
+    <div class="b8l_cards">
+      <div class="b8l_card"><p class="b8l_cardTitle">Today</p><div class="b8l_cardValue">$1.20</div><div class="b8l_cardValue b8l_save">Saved $4.96</div><div class="b8l_cardSub">Calls 128</div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">This month</p><div class="b8l_cardValue">$3.23</div><div class="b8l_cardValue b8l_save">Saved $13.80</div><div class="b8l_cardSub">Calls 412</div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">Total</p><div class="b8l_cardValue">$9.28</div><div class="b8l_cardValue b8l_save">Saved $39.06</div><div class="b8l_cardSub">Calls 1,507</div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">Account balance</p><div class="b8l_cardValue">$0.00</div><div class="b8l_cardSub">Balance unavailable</div></div>
+    </div>
+    <div class="b8l_sep"></div>
+    <p class="b8l_hint">Official pricing policy · off-peak now</p>
+    <p class="b8l_hint">Built-in coding plans (DSH preset): Reference rate $1 = ¥7.2 · Price source pi-ai v0.82.1</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <span class="b8l_route">OpenCode GO</span>
+      <span class="b8l_route">OpenCode Zen</span>
+      <span class="b8l_route">Kimi Coding</span>
+      <span class="b8l_route" style="opacity:.55">Qwen Token Plan</span>
+    </div>
+    <div class="b8l_sep"></div>
+    <p class="b8l_sectionTitle">By model</p>
+    <div class="b8l_scroll">
+      <table class="b8l_table">
+        <thead><tr><th>Model</th><th class="num">Calls</th><th class="num">Cost</th><th class="num">Saved</th></tr></thead>
+        <tbody>
+          <tr><td>glm-5.2</td><td class="num">97</td><td class="num">$7.93</td><td class="num">—</td></tr>
+          <tr><td>deepseek-v4-flash</td><td class="num">180</td><td class="num">$4.50</td><td class="num">—</td></tr>
+          <tr><td>deepseek-v4-flash-0731-ablit</td><td class="num">312</td><td class="num">$0.00</td><td class="num">Saved $17.61</td></tr>
+          <tr><td>mimo-v2.5-free</td><td class="num">64</td><td class="num">$0.00</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="b8l_sep"></div>
+    <p class="b8l_sectionTitle">Sessions</p>
+    <div class="b8l_scroll">
+      <table class="b8l_table">
+        <thead><tr><th>Session</th><th class="num">Calls</th><th class="num">Cost</th><th class="num">Saved</th></tr></thead>
+        <tbody>
+          <tr><td>session-d728e814…</td><td class="num">7</td><td class="num">$0.00</td><td class="num">Saved $0.01</td></tr>
+          <tr><td>session-9c94f3f2…</td><td class="num">757</td><td class="num">$9.75</td><td class="num">—</td></tr>
+          <tr><td>session-8bdfce78…</td><td class="num">3,479</td><td class="num">$5.23</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="b8l_sep"></div>
+    <p class="b8l_sectionTitle">Daily history</p>
+    <div class="b8l_scroll">
+      <table class="b8l_table">
+        <thead><tr><th>Date</th><th class="num">Calls</th><th class="num">Cost</th><th class="num">Saved</th></tr></thead>
+        <tbody>
+          <tr><td>2026-08-17</td><td class="num">812</td><td class="num">$5.57</td><td class="num">—</td></tr>
+          <tr><td>2026-08-16</td><td class="num">695</td><td class="num">$3.71</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -13,9 +13,9 @@ policy schedule** (including the peak/off-peak pricing effective 2026-08-17),
 persists a ledger, shows the **account balance**, and renders live cost badges
 in the browser — **displaying USD when the UI language is English**.
 
-| Mixed session (cloud + local) | Local-only session | Cloud-only session |
-| --- | --- | --- |
-| ![Mixed session panel](docs/screenshots/panel-mixed-en.png) | ![Local-only panel](docs/screenshots/panel-local-en.png) | ![Cloud-only panel](docs/screenshots/panel-cloud-en.png) |
+| Session badge (this session; click for details) | Settings → Cost summary page |
+| --- | --- |
+| ![Session badge](docs/screenshots/badge-session-en.png) | ![Settings summary](docs/screenshots/settings-summary-en.png) |
 
 - **Host side**: subscribes to `session/event` and prices each `assistant/message`
   that carries usage, using the message's own timestamp (policy + peak/off-peak
@@ -26,10 +26,16 @@ in the browser — **displaying USD when the UI language is English**.
   are valued at the official rate ("nominal value") while the actual cost is
   `localCostPerM` (default 0 = free); the difference is tracked as savings and
   shown in the UI (local messages show a "saved" chip).
-- **Browser side**: a per-message cost chip in the assistant action strip
-  (hover shows token breakdown and model) and a session-header cost badge with
-  an expandable panel (session / today / month / total / **account balance** /
-  **savings** / per-model, plus the active pricing mode).
+- **Coding-plan billing**: ships the official USD prices for **every coding plan
+  preset in DSH** (`opencode-go` / `opencode` / `kimi-coding` etc., sourced from
+  the DeepSeek Harness official pi-ai catalog) and prices by **provider routing**
+  — whichever coding plan and model you use, it is billed accurately instead of
+  wrongly falling back to DeepSeek peak/off-peak prices.
+- **Browser side**: a per-message cost chip in the assistant action strip and a
+  session-header badge showing **only this session's** cost/savings (click to see
+  this session's per-model and token details). All aggregates — today / month /
+  total / **account balance** / per-model / sessions / daily history — live on
+  the **`Settings → Cost`** summary page.
 - **Read-only endpoints** (loopback by default): `GET /billing/state`,
   `GET /billing/session/<id>`.
 
@@ -69,6 +75,38 @@ Semantics:
 > ([DeepSeek API Docs](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/));
 > verify against the official page and send a PR if you spot drift.
 
+## Coding-plan billing (full DSH preset coverage)
+
+Besides the DeepSeek official API, you can connect various **coding plans**
+(subscription coding bundles) in DSH, such as `opencode-go` / `opencode` /
+`kimi-coding`, plus qwen / xiaomi / z.ai token subscription packs. This plugin
+ships **the official USD prices for every model on these platforms** (sourced
+from the DeepSeek Harness official pi-ai catalog, see `lib/coding-plans.js`),
+and prices by **provider routing**:
+
+- **Official platform prices** (`opencode-go` / `opencode` / `kimi-coding`): each
+  model's USD price ($/1M) is published by the platform. The RMB display value =
+  official USD price × `codingUsdCnyRate` (default reference rate 7.2; display
+  conversion only — **DeepSeek's own prices have official CNY and never use this
+  rate**).
+- **Subscription token packs** (`qwen-token-plan` / `xiaomi-token-plan` /
+  `zai-coding`): no per-token price is published; calls are within the
+  subscription allowance and are billed at **0**.
+- **Routing rule**: a message takes the coding-plan route only when both
+  `(provider, model)` match that platform's table; anything else keeps the
+  DeepSeek official policy chain (including peak/off-peak). The same model name
+  (e.g. `glm-5.2`) is billed at opencode's official price under `opencode-go`
+  and at each platform's own price under a direct API — never cross-priced.
+- **Follows official automatically**: regenerate the price table any time from
+  your local DSH catalog with `node scripts/sync-coding-plans.mjs`; the source
+  version (pi-ai version + generated time) is part of the pricing fingerprint,
+  so a table change re-prices history on restart.
+
+> Unlike the DeepSeek official prices, coding plans have only official USD
+> prices — the RMB figures are a **reference conversion** at
+> `codingUsdCnyRate` (configurable); the USD figures are always the official
+> truth.
+
 ## Install
 
 The plugin is a standard DSH **bundle** (`dsh.bundle.patch` → its own
@@ -85,15 +123,24 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 ```
 
 Restart `dsh web` afterwards. See `README.md` (Chinese) for the full config
-reference, ledger semantics, and development notes. Run only one `dsh web`
-instance per `$DSH_HOME`.
+reference, ledger semantics, and development notes. To override the default
+`codingUsdCnyRate: 7.2`, set it in your profile `cordis.patch.yml` alongside the
+other keys (e.g. `codingUsdCnyRate: 7.05`). Run only one `dsh web` instance per
+`$DSH_HOME`.
 
 ## Develop
 
 ```powershell
 npm run check   # syntax checks
 npm test        # pricing engine unit tests (node:test, zero deps)
+node scripts/sync-coding-plans.mjs   # regenerate coding-plan prices from your DSH pi-ai catalog
 ```
+
+Layout: `lib/pricing.js` (pricing engine incl. coding-plan route),
+`lib/coding-plans.js` (generated coding-plan prices), `lib/balance.js`,
+`lib/index.js` (host: ledger, balance, `/billing` routes), `lib/client.js`
+(browser: session badge, message chip, Settings→Cost page; handwritten
+bundle, no build step), `test/`, `scripts/`.
 
 ## Contributing / 贡献
 

@@ -46,3 +46,14 @@
         # localCostPerM: 0                 #   shown as "saved" in the UI / 可选：本地 provider 名单——按官方价计算
         #                                 #   「名义价值」；实际成本 = localCostPerM（默认 0 = 免费），
         #                                 #   差值计入 UI 的「已节省」
+        # codingUsdCnyRate: 7.2            # optional: reference USD→CNY rate only for coding-plan display (opencode &
+        #                                 #   co. publish USD-only official prices; this is NOT used for DeepSeek's own
+        #                                 #   prices, which have official CNY). / 可选：coding plan 展示用的参考汇率
+        #                                 #   （$→¥）；opencode 等平台只有官方美元价，人民币展示价按此换算；DeepSeek
+        #                                 #   官方价自带人民币价，不受此汇率影响。
+        #                                 # Built-in coding plans (from the DSH pi-ai catalog, see lib/coding-plans.js):
+        #                                 # opencode-go / opencode / kimi-coding (official USD prices) +
+        #                                 # qwen-token-plan / xiaomi-token-plan / zai-coding (subscription, priced 0).
+        #                                 # 内置 coding plan（取自 DSH pi-ai catalog，见 lib/coding-plans.js）：
+        #                                 # opencode-go / opencode / kimi-coding（平台官方美元价）+
+        #                                 # qwen-token-plan / xiaomi-token-plan / zai-coding（订阅包，按 0 计）

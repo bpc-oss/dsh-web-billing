@@ -5,8 +5,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  DEFAULT_CODING_USD_CNY_RATE,
   OFFICIAL_PRICING_POLICIES,
   activePolicy,
+  codingPlanPriceAt,
   costOf,
   isPeak,
   priceAt,
@@ -213,3 +215,75 @@ test("savings math: local call at official price yields full savings", () => {
   assert.equal(nominalCost.cost - actual.cost, nominalCost.cost);
   assert.equal(nominalCost.costUsd - actual.costUsd, nominalCost.costUsd);
 });
+
+//#region coding plan tests
+test("coding plan route prices provider+model by official USD rate (default)", () => {
+  const t = at("2026-08-18T10:00:00+08:00"); // DeepSeek peak window — must NOT affect coding plan
+  // opencode-go glm-5.2: official USD 1.4/0.26/4.4 per 1M
+  const p = priceAt("glm-5.2", t, { provider: "opencode-go" });
+  assert.equal(p.pricingRoute, "coding");
+  assert.equal(p.mode, "flat");
+  assert.deepEqual(p.usd, { input: 1.4, cacheRead: 0.26, output: 4.4 });
+  // CNY = USD × default rate, rounded to 6 decimals
+  const rate = DEFAULT_CODING_USD_CNY_RATE;
+  assert.equal(p.cny.input, Math.round(1.4 * rate * 1e6) / 1e6);
+  assert.equal(p.cny.cacheRead, Math.round(0.26 * rate * 1e6) / 1e6);
+  assert.equal(p.cny.output, Math.round(4.4 * rate * 1e6) / 1e6);
+  assert.equal(p.policy.label, "OpenCode GO official");
+});
+
+test("coding plan route is independent of DeepSeek peak/off-peak policy", () => {
+  const t = at("2026-08-18T10:00:00+08:00"); // DeepSeek peak hour
+  // opencode-go deepseek-v4-flash has its own flat USD price; must NOT inherit peak
+  const p = priceAt("deepseek-v4-flash", t, { provider: "opencode-go" });
+  assert.equal(p.pricingRoute, "coding");
+  assert.equal(p.mode, "flat");
+  assert.deepEqual(p.usd, { input: 0.14, cacheRead: 0.0028, output: 0.28 });
+  // qwen-token-plan subscription: flat 0 regardless of model
+  const sub = priceAt("deepseek-v4-flash", t, { provider: "qwen-token-plan" });
+  assert.equal(sub.pricingRoute, "subscription");
+  assert.deepEqual(sub.cny, { input: 0, cacheRead: 0, output: 0 });
+  assert.deepEqual(sub.usd, { input: 0, cacheRead: 0, output: 0 });
+  assert.equal(sub.mode, "flat");
+});
+
+test("coding plan route: user's exact model override still wins", () => {
+  const t = at("2026-08-18T10:00:00+08:00");
+  const prices = {
+    "glm-5.2": { cny: { input: 1, cacheRead: 0.1, output: 2 }, usd: { input: 0.1, cacheRead: 0.01, output: 0.2 } }
+  };
+  const p = priceAt("glm-5.2", t, { provider: "opencode-go", prices });
+  assert.equal(p.pricingRoute, "user");
+  assert.deepEqual(p.cny, { input: 1, cacheRead: 0.1, output: 2 });
+  assert.deepEqual(p.usd, { input: 0.1, cacheRead: 0.01, output: 0.2 });
+});
+
+test("coding plan route: model not in a provider's table falls back to official policy", () => {
+  const t = at("2026-08-18T10:00:00+08:00"); // DeepSeek peak
+  // opencode-go does not list deepseek-reasoner → official chain governs
+  const p = priceAt("deepseek-reasoner", t, { provider: "opencode-go" });
+  assert.equal(p.pricingRoute, void 0);
+  assert.deepEqual(cny(p), { input: 4, cacheRead: 1, output: 16 });
+  // model in NO coding plan → official wildcard
+  const unknown = priceAt("my-custom-model", t, { provider: "opencode-go" });
+  assert.equal(unknown.pricingRoute, void 0);
+  assert.deepEqual(cny(unknown), { input: 3, cacheRead: 0.1, output: 9 });
+});
+
+test("coding plan route: custom rate scales CNY only, USD untouched", () => {
+  const t = at("2026-08-18T10:00:00+08:00");
+  const rate = 7;
+  const p = priceAt("minimax-m3", t, { provider: "opencode-go", codingUsdCnyRate: rate });
+  assert.equal(p.pricingRoute, "coding");
+  assert.equal(p.usd.input, 0.3);
+  assert.equal(p.cny.input, 0.3 * rate);
+});
+
+test("codingPlanPriceAt: helper returns undefined for unknown provider/model and validates rate", () => {
+  const t = at("2026-08-18T10:00:00+08:00");
+  assert.equal(codingPlanPriceAt(void 0, "glm-5.2"), void 0);
+  assert.equal(codingPlanPriceAt("opencode-go", "not-a-model"), void 0);
+  const p = codingPlanPriceAt("opencode-go", "glm-5.2");
+  assert.equal(p.pricingRoute, "coding");
+});
+//#endregion

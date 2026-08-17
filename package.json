@@ -1,7 +1,7 @@
 {
   "name": "dsh-web-billing",
-  "version": "1.1.0",
-  "description": "RMB/USD token-billing plugin for DSH web: official-policy auto pricing (incl. peak/off-peak), per-message ledger, account balance, locale-driven currency display",
+  "version": "2.0.0",
+  "description": "RMB/USD token-billing plugin for DSH web: official-policy auto pricing (incl. peak/off-peak), full coding-plan billing by provider routing, Settings→Cost summary page, per-message ledger, account balance, locale-driven currency display",
   "keywords": [
     "dsh",
     "deepseek-harness",
@@ -55,7 +55,8 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/balance.js && node --check lib/client.js",
+    "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/coding-plans.js && node --check lib/balance.js && node --check lib/client.js",
+    "sync:coding-plans": "node scripts/sync-coding-plans.mjs",
     "prepublishOnly": "npm run check && npm test"
   },
   "license": "MIT"
