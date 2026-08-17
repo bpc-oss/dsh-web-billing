@@ -349,7 +349,11 @@ test("subscriptionUnitFor: usage-free zeroes only promo models, others stay usag
   // 用户 freeModels 覆盖内置
   const custom = subscriptionUnitFor("bai", "glm-5.2", nominal, { bai: { mode: "usage-free", freeModels: { "glm-5.2": true } } });
   assert.equal(custom.freeHit, true);
-  const customMiss = subscriptionUnitFor("bai", "deepseek-v4-flash", nominal, { bai: { mode: "usage-free", freeModels: {} } });
-  assert.equal(customMiss.freeHit, false);
+  // 非空自定义覆盖内置：内置免费的 deepseek-v4-flash 在自定义表里未列 → 不命中
+  const customOverride = subscriptionUnitFor("bai", "deepseek-v4-flash", nominal, { bai: { mode: "usage-free", freeModels: { "glm-5.2": true } } });
+  assert.equal(customOverride.freeHit, false);
+  // 空 freeModels（如 UI 误清空）= 未自定义 → fallback 内置表（deepseek-v4-flash 仍免费）
+  const emptyFallback = subscriptionUnitFor("bai", "deepseek-v4-flash", nominal, { bai: { mode: "usage-free", freeModels: {} } });
+  assert.equal(emptyFallback.freeHit, true);
 });
 //#endregion
