@@ -13,7 +13,7 @@ policy schedule** (including the peak/off-peak pricing effective 2026-08-17),
 persists a ledger, shows the **account balance**, and renders live cost badges
 in the browser — **displaying USD when the UI language is English**.
 
-| Session badge (this session; click for details) | Settings → Cost summary page |
+| Session badge (this session; hover for details) | Settings → Cost summary page |
 | --- | --- |
 | ![Session badge](docs/screenshots/badge-session-en.png) | ![Settings summary](docs/screenshots/settings-summary-en.png) |
 
@@ -32,10 +32,10 @@ in the browser — **displaying USD when the UI language is English**.
   — whichever coding plan and model you use, it is billed accurately instead of
   wrongly falling back to DeepSeek peak/off-peak prices.
 - **Browser side**: a per-message cost chip in the assistant action strip and a
-  session-header badge showing **only this session's** cost/savings (click to see
-  this session's per-model and token details). All aggregates — today / month /
-  total / **account balance** / per-model / sessions / daily history — live on
-  the **`Settings → Cost`** summary page.
+  session-header badge showing **this session + today + total** cost/savings
+  (hover to inspect per-model amounts with input/cache/output token breakdowns).
+  Full aggregates — today / month / total / **account balance** / per-model /
+  sessions / daily history — also live on the **`Settings → Cost`** summary page.
 - **Read-only endpoints** (loopback by default): `GET /billing/state`,
   `GET /billing/session/<id>`.
 
