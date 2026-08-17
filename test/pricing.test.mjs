@@ -14,6 +14,8 @@ import {
   priceAt,
   priceFor,
   resolvePrice,
+  sourceOf,
+  subscriptionUnitFor,
   unitForProvider
 } from "../lib/pricing.js";
 
@@ -285,5 +287,44 @@ test("codingPlanPriceAt: helper returns undefined for unknown provider/model and
   assert.equal(codingPlanPriceAt("opencode-go", "not-a-model"), void 0);
   const p = codingPlanPriceAt("opencode-go", "glm-5.2");
   assert.equal(p.pricingRoute, "coding");
+});
+
+test("sourceOf classifies by local/coding/subscription/official", () => {
+  // local wins
+  assert.equal(sourceOf("dgx-spark-vllm", "deepseek-v4-flash-0731-ablit", { localProviders: ["dgx-spark-vllm"] }), "local");
+  // coding plan (kind coding)
+  assert.equal(sourceOf("opencode-go", "glm-5.2", { localProviders: [] }), "coding");
+  // subscription (kind subscription)
+  assert.equal(sourceOf("qwen-token-plan", "deepseek-v4-flash", { localProviders: [] }), "subscription");
+  // untracked provider → official
+  assert.equal(sourceOf("deepseek-official", "deepseek-v4-flash", { localProviders: ["dgx-spark-vllm"] }), "official");
+  // provider not in coding table → official even if name smells like model
+  assert.equal(sourceOf("some-gateway", "glm-5.2", { localProviders: [] }), "official");
+  // unknown / empty provider
+  assert.equal(sourceOf(void 0, "m", { localProviders: [] }), "unknown");
+  assert.equal(sourceOf("", "m", { localProviders: [] }), "unknown");
+});
+
+test("subscriptionUnitFor: subscription mode zeroes unit and keeps nominal", () => {
+  const nominal = priceAt("deepseek-v4-flash", at("2026-08-10T10:00:00+08:00"), {});
+  const metering = { "opencode-go": { mode: "subscription", monthly: 100 } };
+  const split = subscriptionUnitFor("opencode-go", nominal, metering);
+  assert.equal(split.metered, true);
+  assert.equal(split.mode, "subscription");
+  assert.equal(split.monthly, 100);
+  assert.deepEqual(split.unit.cny, { input: 0, cacheRead: 0, output: 0 });
+  assert.deepEqual(split.unit.usd, { input: 0, cacheRead: 0, output: 0 });
+  assert.equal(split.nominal, nominal);
+  // 未配置 / usage → 不接管
+  const usage = subscriptionUnitFor("deepseek-official", nominal, metering);
+  assert.equal(usage.metered, false);
+  assert.equal(usage.unit, nominal);
+  const none = subscriptionUnitFor("deepseek-official", nominal, {});
+  assert.equal(none.metered, false);
+  // free（活动免费）：同样 0 计费，mode=free
+  const free = subscriptionUnitFor("bai", nominal, { bai: { mode: "free" } });
+  assert.equal(free.metered, true);
+  assert.equal(free.mode, "free");
+  assert.deepEqual(free.unit.cny, { input: 0, cacheRead: 0, output: 0 });
 });
 //#endregion
