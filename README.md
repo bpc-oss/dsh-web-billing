@@ -34,7 +34,9 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
   账户余额 / 按模型 / 会话 / 按天历史）在 `设置 → 费用` 页。中文界面显示 ¥，英文
   界面显示 $，也可用
   `displayCurrency` 强制指定。
-- **查询端点（只读，默认仅回环）**：`GET /billing/state`、`GET /billing/session/<id>`。
+- **查询端点（只读，默认仅回环）**：`GET /billing/state`（支持 `?range=...` 时间段）、
+  `GET /billing/session/<id>`；运行时设置：`POST /billing/metering`、`POST /billing/budget`、
+  `POST /billing/balance`（均仅回环）。
 
 ## 核心特性
 
@@ -96,6 +98,43 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
 > 与 DeepSeek 官方价不同，coding plan 只有官方美元价，没有官方人民币价；人民币
 > 金额是按 `codingUsdCnyRate` 的**参考换算**（可配置），美元金额恒为官方真值。
 
+### Provider 收费形式（metering）
+
+每个 provider 可单独设置收费形式（设置 → 费用 → Provider 收费形式，**即时生效，无需重启**）：
+
+| 模式 | 说明 |
+|---|---|
+| `usage` | 按量：按官方/平台价实算花费 |
+| `usage-free` | 按量 + 可白嫖：默认按量，但命中**免费模型清单**的模型按 0 计（白嫖） |
+| `subscription` | 订阅：月付固定费（`monthly`），调用按 0 计，官方名义价折算为「回本」 |
+| `free` | 活动免费：调用按 0 计（真正白嫖） |
+| `local` | 本地部署：调用按 0 计，省的是 API 钱 |
+
+- **白嫖推荐**：费用页内置 pi-ai catalog 的全部免费模型情报（`openrouter` / `nvidia` /
+  `opencode` / `google` 等 provider 的 cost=0 模型，见 `lib/promo-models.js`，由
+  `scripts/sync-promo-models.mjs` 生成），一键「设为按量+可白嫖」；升级 DSH 后重跑
+  脚本即可同步活动情报。
+- **历史重估**：切换收费形式后**立即重估全部历史记录**（free/subscription/local
+  的历史花费归零、按名义价折算节省），无需重启。
+- **回本倍数**：订阅月费 vs 累计回本金额，费用页展示「累计回本倍数」。
+
+### 费用页（设置 → 费用）
+
+浏览器端汇总页（只读 + 少量即时设置）：
+
+- **时间段筛选**：今日 / 本周 / 本月 / 近 30 天 / 全部 / 自定义起止日期，所有模块
+  （概览 / 来源 / 模型 / 趋势 / 会话）跟随所选范围；默认本月。
+- **概览与洞察**：范围主卡（花费 + 省 + 来源构成条）、今日 / 累计 / 余额卡、
+  月度环比、累计回本倍数、高峰占比、范围 Token 统计、每日趋势折线图。
+- **来源分组**：按「本地省 / 回本 / 白嫖 / 按量 / Coding」分组，各带语义色点与明细。
+- **月度预算**：设每月预算（¥），进度条绿→琥珀→红、超支红色高亮；预算锁定本月。
+- **余额开关**：运行时开关余额查询/展示（即时生效，无需重启）。
+- **导出**：CSV / JSON 一键下载账单（CSV 带 UTF-8 BOM）。
+- **会话标题**：会话列表显示标题而非 UUID。
+
+> 聚合口径：范围明细基于最近流水窗口（`maxRecent`，默认 20000 条），更早的数据
+> 为聚合级（日维度全量）。
+
 ## 安装
 
 插件是一个标准 **DSH 组合包（bundle）**（`dsh.bundle.patch` 指向包内
@@ -149,6 +188,7 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 | `balance.apiKeyEnv` | `DEEPSEEK_API_KEY` | 解析 API key 的凭证引用（经 `ctx.credentials` 或环境变量） |
 | `balance.refreshMs` | `60000` | 余额刷新间隔 |
 | `balance.timeoutMs` | `5000` | 余额请求超时 |
+| `metering` | `{}` | 静态收费形式表：`{ provider: { mode, monthly?, freeModels? } }`（运行时可在设置页改，存 `web-billing-metering.json`） |
 
 单价字段语义：`input`=缓存未命中输入，`cacheRead`=缓存命中输入，`output`=输出
 （¥ / 百万 tokens）。
@@ -175,13 +215,14 @@ npm test        # 定价引擎 + 余额解析单元测试（node:test，无依�
 结构：
 
 ```
-lib/pricing.js    定价引擎（纯函数：政策时间表 / 峰谷判定 / 覆盖合并 / coding plan 路由 / 费用计算）
+lib/pricing.js    定价引擎（纯函数：政策时间表 / 峰谷判定 / 覆盖合并 / coding plan 路由 / metering / 费用计算）
 lib/coding-plans.js  DSH 预设 coding plan 官方美元价（由 scripts/sync-coding-plans.mjs 生成，勿手改）
+lib/promo-models.js  免费模型情报（由 scripts/sync-promo-models.mjs 生成，勿手改）
 lib/balance.js    账号余额（响应解析纯函数 + 带缓存/容错的抓取器）
-lib/index.js      host 端：记账、账本、余额轮询、/billing 路由（cordis 插件）
+lib/index.js      host 端：记账、账本、余额轮询、metering/预算/余额开关、/billing 路由（cordis 插件）
 lib/client.js     浏览器端：会话角标、消息角标、设置→费用汇总页（手写 __ModuleLoader__ bundle，无需构建）
 test/             单元测试
-scripts/          sync-coding-plans.mjs（从 DSH pi-ai catalog 同步 coding plan 价表）、安装脚本
+scripts/          sync-coding-plans.mjs / sync-promo-models.mjs（同步官方价表与免费模型情报）、安装脚本
 ```
 
 浏览器端 bundle 为手写模块（与 DSH 官方 client 插件同格式），修改后**刷新页面 +
