@@ -1,6 +1,6 @@
 {
   "name": "dsh-web-billing",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "RMB/USD token-billing plugin for DSH web: official-policy auto pricing (incl. peak/off-peak), per-message ledger, account balance, locale-driven currency display",
   "keywords": [
     "dsh",

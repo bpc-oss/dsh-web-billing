@@ -122,6 +122,13 @@ test('mounts the cumulative badge in the sidebar instead of the crowded composer
   assert.doesNotMatch(source, /ctx\.slots\.inject\("conversation\.input\.right"/)
 })
 
+test('uses an opaque light/dark surface for the expanded billing panel', async () => {
+  const source = await readFile(CLIENT_URL, 'utf8')
+  assert.match(source, /const opaquePanelCss = "\.b8l_panel\{background:var\(--dsw-static-neutral-bluish-00,#fff\)\}/)
+  assert.match(source, /body\[data-ds-dark-theme\] \.b8l_panel\{background:var\(--dsw-static-neutral-bluish-950,#151517\)\}/)
+  assert.match(source, /tag\.textContent = `\$\{css\}\$\{sidebarCss\}\$\{opaquePanelCss\}`/)
+})
+
 test('expanded panel states that local DSH estimates are not the official account invoice', async () => {
   const loaded = await loadBadge({ open: true })
   const tree = renderBadge(loaded.Badge, loaded.dictionaries, { open: true })
