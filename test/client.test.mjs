@@ -11,6 +11,7 @@ test('declares the client owners required before billing registers conversation 
   assert.deepEqual(manifest.dsh.client.inject, [
     '@deepseek-ai/dsh-client-locale',
     '@deepseek-ai/dsh-client-ui-conversation',
+    '@deepseek-ai/dsh-client-ui-sidebar',
   ])
 })
 
@@ -62,7 +63,7 @@ async function loadBadge({ open = false } = {}) {
     slots: {
       inject: (_name, factory) => { factory(); return () => {} },
       register: (entry, component) => {
-        if (entry.name === 'conversation.input.right') Badge = component
+        if (entry.name === 'sidebar.footer.action') Badge = component
         return () => {}
       },
     },
@@ -100,6 +101,7 @@ function renderBadge(Badge, dictionaries, { open = false, balance, pricing } = {
   const t = key => dictionaries.zh[key] ?? key
   return Badge({
     sessionId: 'empty-session',
+    wide: true,
     useBilling: selector => selector({ status: 'ready', value, sessions: {} }),
     useLocale: selector => selector({ active: 'zh' }),
     refreshSession: () => {},
@@ -107,17 +109,17 @@ function renderBadge(Badge, dictionaries, { open = false, balance, pricing } = {
   })
 }
 
-test('global DSH token and cost totals remain visible for an untracked current session', async () => {
+test('global DSH cost total remains visible in the expanded sidebar for an untracked session', async () => {
   const loaded = await loadBadge()
   const tree = renderBadge(loaded.Badge, loaded.dictionaries)
   assert.notEqual(tree, null)
-  assert.match(textOf(tree), /DSH.*3\.18M.*¥0\.368/)
+  assert.match(textOf(tree), /费用.*¥0\.368/)
 })
 
-test('mounts the cumulative badge in the composer surface that survives blank sessions', async () => {
+test('mounts the cumulative badge in the sidebar instead of the crowded composer surface', async () => {
   const source = await readFile(CLIENT_URL, 'utf8')
-  assert.match(source, /ctx\.slots\.inject\("conversation\.input\.right"/)
-  assert.doesNotMatch(source, /ctx\.slots\.inject\("conversation\.session\.header\.utilities"/)
+  assert.match(source, /ctx\.slots\.inject\("sidebar\.footer\.action"/)
+  assert.doesNotMatch(source, /ctx\.slots\.inject\("conversation\.input\.right"/)
 })
 
 test('expanded panel states that local DSH estimates are not the official account invoice', async () => {

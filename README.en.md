@@ -32,8 +32,8 @@ in the browser — **displaying USD when the UI language is English**.
   are valued at the official rate ("nominal value") while the actual cost is
   `localCostPerM` (default 0 = free); the difference is tracked as savings and
   shown in the UI (local messages show a "saved" chip).
-- **Browser side**: the composer's right-hand tool row always shows compact local DSH token and cost
-  totals, even when the current session has no ledger row; each assistant
+- **Browser side**: the sidebar always shows the local DSH cost total, even when
+  the current session has no ledger row, without competing with composer controls; each assistant
   message also gets a cost chip (hover shows token breakdown and model). The
   badge opens an expandable panel (session / today / month / total / **account balance** /
   **savings** / per-model, plus the active pricing mode).
