@@ -32,10 +32,13 @@ in the browser — **displaying USD when the UI language is English**.
   — whichever coding plan and model you use, it is billed accurately instead of
   wrongly falling back to DeepSeek peak/off-peak prices.
 - **Browser side**: a per-message cost chip in the assistant action strip and a
-  session-header badge showing **this session + today + total** cost/savings
-  (hover to inspect per-model amounts with input/cache/output token breakdowns).
-  Full aggregates — today / month / total / **account balance** / per-model /
-  sessions / daily history — also live on the **`Settings → Cost`** summary page.
+  session-header badge whose hover panel is **fully scoped to this session**:
+  this session's today and cumulative cost/savings, per-model stats (cumulative
+  amount per model + Input / cache-hit-rate / Output), and — when the session
+  uses any DeepSeek-family model (official / local / coding-plan) — the current
+  official peak/off-peak phase. Full aggregates — today / month / total /
+  **account balance** / per-model / sessions / daily history — live on the
+  **`Settings → Cost`** summary page.
 - **Read-only endpoints** (loopback by default): `GET /billing/state`,
   `GET /billing/session/<id>`.
 
