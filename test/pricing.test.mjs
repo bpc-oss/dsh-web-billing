@@ -308,7 +308,7 @@ test("sourceOf classifies by local/coding/subscription/official", () => {
 test("subscriptionUnitFor: subscription mode zeroes unit and keeps nominal", () => {
   const nominal = priceAt("deepseek-v4-flash", at("2026-08-10T10:00:00+08:00"), {});
   const metering = { "opencode-go": { mode: "subscription", monthly: 100 } };
-  const split = subscriptionUnitFor("opencode-go", nominal, metering);
+  const split = subscriptionUnitFor("opencode-go", "glm-5.2", nominal, metering);
   assert.equal(split.metered, true);
   assert.equal(split.mode, "subscription");
   assert.equal(split.monthly, 100);
@@ -316,15 +316,40 @@ test("subscriptionUnitFor: subscription mode zeroes unit and keeps nominal", () 
   assert.deepEqual(split.unit.usd, { input: 0, cacheRead: 0, output: 0 });
   assert.equal(split.nominal, nominal);
   // 未配置 / usage → 不接管
-  const usage = subscriptionUnitFor("deepseek-official", nominal, metering);
+  const usage = subscriptionUnitFor("deepseek-official", "deepseek-v4-flash", nominal, metering);
   assert.equal(usage.metered, false);
   assert.equal(usage.unit, nominal);
-  const none = subscriptionUnitFor("deepseek-official", nominal, {});
+  const none = subscriptionUnitFor("deepseek-official", "deepseek-v4-flash", nominal, {});
   assert.equal(none.metered, false);
   // free（活动免费）：同样 0 计费，mode=free
-  const free = subscriptionUnitFor("bai", nominal, { bai: { mode: "free" } });
+  const free = subscriptionUnitFor("bai", "deepseek-v4-flash", nominal, { bai: { mode: "free" } });
   assert.equal(free.metered, true);
   assert.equal(free.mode, "free");
   assert.deepEqual(free.unit.cny, { input: 0, cacheRead: 0, output: 0 });
+  // local（本地部署）：0 计费，mode=local
+  const local = subscriptionUnitFor("dgx-spark-vllm", "deepseek-v4-flash-0731-ablit", nominal, { "dgx-spark-vllm": { mode: "local" } });
+  assert.equal(local.metered, true);
+  assert.equal(local.mode, "local");
+});
+
+test("subscriptionUnitFor: usage-free zeroes only promo models, others stay usage", () => {
+  const nominal = priceAt("deepseek-v4-flash", at("2026-08-10T10:00:00+08:00"), {});
+  // 内置活动表：bai 的 deepseek-v4-flash 免费
+  const metering = { bai: { mode: "usage-free" } };
+  // 命中 promo → 白嫖
+  const hit = subscriptionUnitFor("bai", "deepseek-v4-flash", nominal, metering);
+  assert.equal(hit.metered, true);
+  assert.equal(hit.mode, "usage-free");
+  assert.equal(hit.freeHit, true);
+  assert.deepEqual(hit.unit.cny, { input: 0, cacheRead: 0, output: 0 });
+  // 未命中 promo → 按量
+  const miss = subscriptionUnitFor("bai", "some-other-model", nominal, metering);
+  assert.equal(miss.metered, false);
+  assert.equal(miss.unit, nominal);
+  // 用户 freeModels 覆盖内置
+  const custom = subscriptionUnitFor("bai", "glm-5.2", nominal, { bai: { mode: "usage-free", freeModels: { "glm-5.2": true } } });
+  assert.equal(custom.freeHit, true);
+  const customMiss = subscriptionUnitFor("bai", "deepseek-v4-flash", nominal, { bai: { mode: "usage-free", freeModels: {} } });
+  assert.equal(customMiss.freeHit, false);
 });
 //#endregion
