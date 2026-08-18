@@ -130,3 +130,79 @@ test("provider stats filter by range and keep window-external history", () => {
   assert.ok(glm !== void 0, "window-external glm-5.2 must appear in 'all' range");
   assert.equal(glm[1].savings, 57.13);
 });
+
+test("long-run integrity: aggregates stay complete even when details are trimmed", () => {
+  // 模拟 BillingLedger 的核心语义：聚合 Map 只增不减（record 时实时累计），
+  // 明细（session.messages / recent）可裁剪——裁剪只影响"查看单条"，不影响统计。
+  // 场景：365 天 × 每天 3 个会话 × 每会话 50 条 = 54750 条，但每会话只保留 5 条明细。
+  const totals = zeroCounts();
+  const byDay = new Map();
+  const byProvider = new Map();
+  const byDayProvider = new Map();
+  const sessions = new Map(); // sessionId -> Map(messageId -> message)
+
+  const msg = (sessionId, messageId, time, provider, model, cost) => ({
+    sessionId, messageId, time, provider, model, cost,
+    costUsd: cost / 7, costNominal: cost, costNominalUsd: cost / 7,
+    savings: 0, savingsUsd: 0, inputTokens: 100, cacheReadTokens: 900, outputTokens: 10
+  });
+  const addCountsLike = (t, s) => {
+    t.calls += 1; t.cost += s.cost; t.costUsd += s.costUsd; t.costNominal += s.costNominal;
+    t.costNominalUsd += s.costNominalUsd; t.savings += s.savings; t.savingsUsd += s.savingsUsd;
+    t.inputTokens += s.inputTokens; t.cacheReadTokens += s.cacheReadTokens; t.outputTokens += s.outputTokens;
+  };
+
+  let expectedCost = 0;
+  let expectedCalls = 0;
+  let mid = 0;
+  for (let day = 0; day < 365; day++) {
+    const date = new Date(2026, 0, 1 + day);
+    const dayKeyStr = date.toISOString().slice(0, 10);
+    const dayCounts = zeroCounts();
+    for (let sessionIdx = 0; sessionIdx < 3; sessionIdx++) {
+      const sid = `s${day}-${sessionIdx}`;
+      let messages = sessions.get(sid);
+      if (messages === void 0) { messages = new Map(); sessions.set(sid, messages); }
+      for (let i = 0; i < 50; i++) {
+        const cost = 0.1 + ((mid % 7) * 0.01);
+        const m = msg(sid, `m${mid}`, date.getTime(), "deepseek-official", "deepseek-v4-flash", cost);
+        mid++;
+        expectedCost += cost; expectedCalls++;
+        addCountsLike(totals, m);
+        addCountsLike(dayCounts, m);
+        let pc = byProvider.get("deepseek-official");
+        if (pc === void 0) { pc = zeroCounts(); byProvider.set("deepseek-official", pc); }
+        addCountsLike(pc, m);
+        const dpKey = `${dayKeyStr}\u0000deepseek-official\u0000deepseek-v4-flash`;
+        let dp = byDayProvider.get(dpKey);
+        if (dp === void 0) { dp = zeroCounts(); byDayProvider.set(dpKey, dp); }
+        addCountsLike(dp, m);
+        messages.set(`m${mid}`, m); // 明细
+      }
+      // 裁剪明细到 5 条（模拟 maxMessagesPerSession）
+      if (messages.size > 5) {
+        const oldest = [...messages.keys()].slice(0, messages.size - 5);
+        for (const k of oldest) messages.delete(k);
+      }
+    }
+    byDay.set(dayKeyStr, dayCounts);
+  }
+
+  // 裁剪后：sessions 明细只剩每会话 5 条（总量远小于 54750），但聚合必须完整
+  let detailCount = 0;
+  for (const [, messages] of sessions) detailCount += messages.size;
+  assert.ok(detailCount < expectedCalls, `details trimmed (${detailCount} < ${expectedCalls})`);
+
+  const sum = (obj) => { let c = 0, cost = 0; for (const v of Object.values(obj)) { c += v.calls; cost += v.cost; } return { c, cost }; };
+  const sumMap = (map) => { let c = 0, cost = 0; for (const v of map.values()) { c += v.calls; cost += v.cost; } return { c, cost }; };
+  const t = sum({ totals });
+  const bp = sumMap(byProvider);
+  const bd = sumMap(byDay);
+  const bdp = sumMap(byDayProvider);
+  assert.ok(Math.abs(t.cost - expectedCost) < 0.001, "totals cost complete");
+  assert.ok(Math.abs(bp.cost - expectedCost) < 0.001, "byProvider cost complete (no trimming)");
+  assert.ok(Math.abs(bd.cost - expectedCost) < 0.001, "byDay cost complete");
+  assert.ok(Math.abs(bdp.cost - expectedCost) < 0.001, "byDayProvider cost complete (record-time accumulation)");
+  assert.equal(bp.c, expectedCalls, "byProvider calls complete");
+  assert.equal(bdp.c, expectedCalls, "byDayProvider calls complete despite detail trimming");
+});
