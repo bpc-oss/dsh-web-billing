@@ -27,9 +27,9 @@ history re-prices on demand, budget and balance are always visible.
 
 ## 📸 Screenshots
 
-| Session header badge (hover for this-session details) | Settings → Cost page (full page, English UI) |
+| Session header badge (hover for this-session details) | Settings → Cost page (English UI, current layout) |
 | --- | --- |
-| ![Session badge](docs/screenshots/badge-session-en.png) | ![Cost page](docs/screenshots/settings-summary-en.png) |
+| ![Session badge](docs/screenshots/badge-session-en.png) | ![Cost page](docs/screenshots/settings-en-current.png) |
 
 > Screenshots above are from the English UI; the Chinese-UI equivalents are
 > in [README.md](README.md) (the shared `settings-*.png` captures are

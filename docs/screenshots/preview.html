@@ -201,56 +201,59 @@
 <div id="settings-en" class="scene">
   <div class="settingsRoot">
     <h3>Cost</h3>
+    <!-- 时间段筛选 -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <span class="b8l_route" style="opacity:.55">Today</span>
+      <span class="b8l_route" style="opacity:.55">This week</span>
+      <span class="b8l_route" style="border-color:#2563eb;color:#2563eb">This month</span>
+      <span class="b8l_route" style="opacity:.55">30 days</span>
+      <span class="b8l_route" style="opacity:.55">All</span>
+      <span class="b8l_route" style="opacity:.55">Custom</span>
+    </div>
+    <p class="b8l_hint">Range details from the recent-ledger window; older data is aggregate-level</p>
+    <!-- 概览卡（本月主卡宽 + 今日/累计/Token/余额） -->
     <div class="b8l_cards">
-      <div class="b8l_card"><p class="b8l_cardTitle">Today</p><div class="b8l_cardValue">$1.20</div><div class="b8l_cardValue b8l_save">Saved $4.96</div><div class="b8l_cardSub">Calls 128</div></div>
-      <div class="b8l_card"><p class="b8l_cardTitle">This month</p><div class="b8l_cardValue">$3.23</div><div class="b8l_cardValue b8l_save">Saved $13.80</div><div class="b8l_cardSub">Calls 412</div></div>
-      <div class="b8l_card"><p class="b8l_cardTitle">Total</p><div class="b8l_cardValue">$9.28</div><div class="b8l_cardValue b8l_save">Saved $39.06</div><div class="b8l_cardSub">Calls 1,507</div></div>
-      <div class="b8l_card"><p class="b8l_cardTitle">Account balance</p><div class="b8l_cardValue">$0.00</div><div class="b8l_cardSub">Balance unavailable</div></div>
+      <div class="b8l_card" style="grid-column:span 2"><p class="b8l_cardTitle">This month</p><div class="b8l_cardValue">$19.32</div><div class="b8l_cardValue b8l_save" style="color:#eab308">Saved $126.5</div><div class="b8l_cardSub">Calls 38,632 · <span style="color:#16a34a">● Local saved $18.1</span> · <span style="color:#8b5cf6">● Recovered $8.0</span> · <span style="color:#0ea5e9">● Free ride $100.4</span> · <span style="color:#71717a">● Usage $19.3</span></div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">Today</p><div class="b8l_cardValue">$0</div><div class="b8l_cardValue b8l_save" style="color:#eab308">Saved $82.5</div><div class="b8l_cardSub">Calls 15,960</div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">Total</p><div class="b8l_cardValue">$19.32</div><div class="b8l_cardValue b8l_save" style="color:#eab308">Saved $126.5</div><div class="b8l_cardSub">Calls 38,632</div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">Tokens</p><div class="b8l_cardValue">12,966M</div><div class="b8l_cardSub">Input (miss) 177M · Cache hit 12,762M · Output 27M</div></div>
+      <div class="b8l_card"><p class="b8l_cardTitle">Account balance</p><div class="b8l_cardValue">$2.52</div><div class="b8l_cardSub">Granted $0 · Topped up $2.52</div></div>
     </div>
     <div class="b8l_sep"></div>
-    <p class="b8l_hint">Official pricing policy · off-peak now</p>
-    <p class="b8l_hint">Built-in coding plans (DSH preset): Reference rate $1 = ¥7.2 · Price source pi-ai v0.82.1</p>
-    <div style="display:flex;flex-wrap:wrap;gap:6px">
-      <span class="b8l_route">OpenCode GO</span>
-      <span class="b8l_route">OpenCode Zen</span>
-      <span class="b8l_route">Kimi Coding</span>
-      <span class="b8l_route" style="opacity:.55">Qwen Token Plan</span>
+    <p class="b8l_hint">Official pricing policy · peak now</p>
+    <div class="b8l_sep"></div>
+    <!-- 来源分组 -->
+    <p class="b8l_sectionTitle">By source</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="border:1px solid #e4e4e7;border-left:3px solid #16a34a;border-radius:12px;padding:10px 12px">
+        <div style="display:flex;justify-content:space-between"><b style="color:#16a34a">Local saved $18.1</b><span style="color:#71717a;font-size:11px">Calls 5,564</span></div>
+        <div style="font-size:12px;color:#3f3f46;display:flex;justify-content:space-between;margin-top:4px"><span>dgx-spark-vllm · deepseek-v4-flash-0731-ablit</span><span style="color:#16a34a">Saved $18.1</span></div>
+      </div>
+      <div style="border:1px solid #e4e4e7;border-left:3px solid #8b5cf6;border-radius:12px;padding:10px 12px">
+        <div style="display:flex;justify-content:space-between"><b style="color:#8b5cf6">Recovered $8.0</b><span style="color:#71717a;font-size:11px">Calls 219</span></div>
+        <div style="font-size:12px;color:#3f3f46;display:flex;justify-content:space-between;margin-top:4px"><span>opencode-go · glm-5.2</span><span style="color:#8b5cf6">Saved $8.0</span></div>
+        <div style="font-size:12px;color:#3f3f46;display:flex;justify-content:space-between;margin-top:4px"><span>opencode-go · mimo-v2.5</span><span style="color:#8b5cf6">Saved $0.07</span></div>
+      </div>
+      <div style="border:1px solid #e4e4e7;border-left:3px solid #0ea5e9;border-radius:12px;padding:10px 12px">
+        <div style="display:flex;justify-content:space-between"><b style="color:#0ea5e9">Free ride $100.4</b><span style="color:#71717a;font-size:11px">Calls 15,306</span></div>
+        <div style="font-size:12px;color:#3f3f46;display:flex;justify-content:space-between;margin-top:4px"><span>bai · deepseek-v4-flash</span><span style="color:#0ea5e9">Saved $100.4</span></div>
+      </div>
+      <div style="border:1px solid #e4e4e7;border-left:3px solid #71717a;border-radius:12px;padding:10px 12px">
+        <div style="display:flex;justify-content:space-between"><b>Usage $19.3</b><span style="color:#71717a;font-size:11px">Calls 12,481</span></div>
+        <div style="font-size:12px;color:#3f3f46;display:flex;justify-content:space-between;margin-top:4px"><span>deepseek-official · deepseek-v4-flash</span><span>$19.3</span></div>
+      </div>
     </div>
     <div class="b8l_sep"></div>
-    <p class="b8l_sectionTitle">By model</p>
-    <div class="b8l_scroll">
-      <table class="b8l_table">
-        <thead><tr><th>Model</th><th class="num">Calls</th><th class="num">Cost</th><th class="num">Saved</th></tr></thead>
-        <tbody>
-          <tr><td>glm-5.2</td><td class="num">97</td><td class="num">$7.93</td><td class="num">—</td></tr>
-          <tr><td>deepseek-v4-flash</td><td class="num">180</td><td class="num">$4.50</td><td class="num">—</td></tr>
-          <tr><td>deepseek-v4-flash-0731-ablit</td><td class="num">312</td><td class="num">$0.00</td><td class="num">Saved $17.61</td></tr>
-          <tr><td>mimo-v2.5-free</td><td class="num">64</td><td class="num">$0.00</td><td class="num">—</td></tr>
-        </tbody>
-      </table>
-    </div>
+    <!-- 白嫖推荐 -->
+    <p class="b8l_hint">Free-ride picks: google(2) · nvidia(16) · opencode(7) · openrouter(17) · bai(1) …</p>
     <div class="b8l_sep"></div>
-    <p class="b8l_sectionTitle">Sessions</p>
-    <div class="b8l_scroll">
-      <table class="b8l_table">
-        <thead><tr><th>Session</th><th class="num">Calls</th><th class="num">Cost</th><th class="num">Saved</th></tr></thead>
-        <tbody>
-          <tr><td>session-d728e814…</td><td class="num">7</td><td class="num">$0.00</td><td class="num">Saved $0.01</td></tr>
-          <tr><td>session-9c94f3f2…</td><td class="num">757</td><td class="num">$9.75</td><td class="num">—</td></tr>
-          <tr><td>session-8bdfce78…</td><td class="num">3,479</td><td class="num">$5.23</td><td class="num">—</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="b8l_sep"></div>
-    <p class="b8l_sectionTitle">Daily history</p>
-    <div class="b8l_scroll">
-      <table class="b8l_table">
-        <thead><tr><th>Date</th><th class="num">Calls</th><th class="num">Cost</th><th class="num">Saved</th></tr></thead>
-        <tbody>
-          <tr><td>2026-08-17</td><td class="num">812</td><td class="num">$5.57</td><td class="num">—</td></tr>
-          <tr><td>2026-08-16</td><td class="num">695</td><td class="num">$3.71</td><td class="num">—</td></tr>
-        </tbody>
-      </table>
+    <!-- Provider metering -->
+    <p class="b8l_sectionTitle">Provider metering</p>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:120px">opencode-go</span><span class="b8l_route" style="color:#8b5cf6;border-color:#8b5cf6">Subscription</span><span style="color:#71717a;font-size:11px">¥35/mo</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:120px">bai</span><span class="b8l_route" style="color:#0ea5e9;border-color:#0ea5e9">Usage + free</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:120px">dgx-spark-vllm</span><span class="b8l_route" style="color:#16a34a;border-color:#16a34a">Local</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:120px">deepseek-official</span><span class="b8l_route">Usage</span></div>
     </div>
   </div>
 </div>
