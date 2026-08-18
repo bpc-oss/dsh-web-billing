@@ -8,7 +8,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mergeCounts, zeroCounts } from "../lib/pricing.js";
+import { ledgerIntegrity, mergeCounts, zeroCounts } from "../lib/pricing.js";
 
 /** 构造一条最小记账消息（含聚合所需字段）。 */
 function msg(day, provider, model, calls, cost, savings) {
@@ -205,4 +205,37 @@ test("long-run integrity: aggregates stay complete even when details are trimmed
   assert.ok(Math.abs(bdp.cost - expectedCost) < 0.001, "byDayProvider cost complete (record-time accumulation)");
   assert.equal(bp.c, expectedCalls, "byProvider calls complete");
   assert.equal(bdp.c, expectedCalls, "byDayProvider calls complete despite detail trimming");
+});
+
+test("ledgerIntegrity detects byDayProvider gap (Map-aware, not Object.values-on-Map)", () => {
+  const mk = (calls, cost) => ({ calls, cost, costUsd: cost / 7, costNominal: cost, costNominalUsd: cost / 7, savings: 0, savingsUsd: 0, inputTokens: 0, cacheReadTokens: 0, outputTokens: 0 });
+  // 完整账本：各口径一致 → ok
+  const complete = {
+    totals: mk(100, 50),
+    byProvider: new Map([["a", mk(60, 30)], ["b", mk(40, 20)]]),
+    byProviderModel: new Map([["a\u0000m1", mk(60, 30)], ["b\u0000m2", mk(40, 20)]]),
+    byDay: new Map([["2026-08-01", mk(100, 50)]]),
+    byDayProvider: new Map([["2026-08-01\u0000a\u0000m1", mk(60, 30)], ["2026-08-01\u0000b\u0000m2", mk(40, 20)]]),
+    bySession: new Map([["s1", { messages: new Map([["m1", mk(100, 50)]]) }]])
+  };
+  const okResult = ledgerIntegrity(complete);
+  assert.equal(okResult.ok, true, "complete ledger must pass integrity");
+  const gapCheck = okResult.checks.find((c) => c.key === "byDayProvider_byProvider");
+  assert.equal(gapCheck.ok, true, "byDayProvider matches byProvider when complete");
+
+  // 缺口账本：byDayProvider 缺部分（模拟历史裁剪）→ 检测到
+  const gapped = {
+    totals: mk(100, 50),
+    byProvider: new Map([["a", mk(60, 30)], ["b", mk(40, 20)]]),
+    byProviderModel: new Map([["a\u0000m1", mk(60, 30)], ["b\u0000m2", mk(40, 20)]]),
+    byDay: new Map([["2026-08-01", mk(100, 50)]]),
+    // byDayProvider 只有 a（缺 b 的 40 calls/20 cost）
+    byDayProvider: new Map([["2026-08-01\u0000a\u0000m1", mk(60, 30)]]),
+    bySession: new Map([["s1", { messages: new Map([["m1", mk(100, 50)]]) }]])
+  };
+  const gapResult = ledgerIntegrity(gapped);
+  assert.equal(gapResult.ok, false, "gapped ledger must fail integrity");
+  const gap = gapResult.checks.find((c) => c.key === "byDayProvider_byProvider");
+  assert.equal(gap.ok, false, "byDayProvider_byProvider must detect the gap");
+  assert.ok(Math.abs(gap.a - gap.b) > 10, "gap magnitude reported (a=20 vs b=50)");
 });
