@@ -125,6 +125,8 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
   （纯节省按来源着色，真实付费保持中性）。
 - **月度预算**：设每月预算（¥），进度条绿→琥珀→红、超支红色高亮；预算锁定本月。
 - **右上角余额开关**：控制会话头部角标是否显示余额；设置页始终显示。
+- **数据自检**：账本各口径一致性检查（integrity）与历史裁剪缺口（`bdpGap` /
+  `repriceGap`）显式标注——缺口可见、金额可对账，绝不静默缩水。
 - **导出**：CSV（UTF-8 BOM）/ JSON 一键下载账单。
 - **会话标题**：会话列表显示标题而非 UUID。
 - **版本与更新**：页面底部检测 GitHub 是否有新版本并链接。
@@ -137,14 +139,31 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
 - **本会话今日 / 累计** 花费 + 节省（节省合计**金色**，与单项来源色区分）。
 - **分模型统计**：每模型累计金额 + Input / 缓存命中率 / Output，provider 标签按来源着色
   （本地绿 / 白嫖天蓝 / 回本紫 / 按量灰）。
+- **分模型缺口提示**：历史迁移/裁剪导致分模型合计小于会话总账时，浮层显示琥珀色
+  提示（`分模型缺 ¥X`）——金额未丢失（完整在总账），仅该笔无法再按模型拆分；新
+  产生的数据不会出现此提示。
 - **余额行**（可开关）：官方账户余额。
 - **DeepSeek 峰谷提示**：使用 DeepSeek 系列模型时显示当前高峰期 / 峰谷期。
 - **浮层体验**：React portal 渲染（不被侧边栏遮挡）、跟随角标定位、不透明主题背景、悬停自动开合。
 
 ### 6. 账号余额
 
-复用 provider 的 API key 调用官方 `GET /user/balance`（默认 60s 刷新、5s 超时、失败静默降级），
-CNY/USD 双币种随 `/billing/state` 返回；运行时开关控制右上角显示。
+复用 provider 的 API key 调用官方 `GET /user/balance`（默认 60s 刷新、5s 超时），
+CNY/USD 双币种随 `/billing/state` 返回。**瞬时失败不抹掉已验证余额**：网络抖动/
+超时期间保留最近一次成功值并标注「缓存」，周期刷新自动重试；只有从未成功查询过
+才显示「不可用」。运行时开关控制右上角显示（`balance.enabled` 或设置页切换，
+关闭即停止轮询、不再使用 API key）。
+
+### 7. 计价情报（当前单价与下一切换时刻）
+
+`/billing/state` 的 `pricing` 字段随响应提供计价情报，客户端与外部工具可直接使用：
+
+- `currentUnitPrices`：当前生效的官方模型单价（双币种 + 高峰/空闲模式）；
+- `nextTransitionAt`：下一次峰谷或政策切换时刻（epoch ms，72 小时内），由
+  `lib/pricing.js` 的 `nextPricingTransition` 计算（先小时探测后二分到秒，
+  可跨越未来政策生效点）；
+- `observedAt` / `refreshIntervalMs`：观测时间与建议刷新间隔（1 小时）；
+- `source`：价格来源（官方定价页链接）。
 
 ---
 
@@ -220,6 +239,9 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 - **重估缺口**：改价/切换收费形式触发历史重估时，以保留的逐条记录（会话明细 ∪
   最近流水）为上限；被两处都裁剪掉的历史消息无法按新价重算，其旧价贡献会在重估后
   丢失——缺口随 `/billing/state` 的 `repriceGap` 显式返回并在费用页标注，不会静默缩水。
+- **分模型缺口**：分模型聚合（`bySessionModel`）对历史迁移/回填可能少于会话总账
+  （被裁剪且不在保留窗口的消息无法回填），差额由 `/billing/session/<id>` 的
+  `modelGap` 返回并在浮层标注——金额不丢失，仅无法再按模型拆分归属。
 - **余额只读**：余额查询只调用官方只读接口，不写任何数据；key 只存在于服务端
   解析链路，不下发浏览器。
 
@@ -250,6 +272,9 @@ scripts/          sync-coding-plans.mjs / sync-promo-models.mjs（同步官方�
 
 - `/billing` 端点默认仅回环地址可访问（`loopbackOnly: true`）；需要从局域网查看
   时改为 `false`（与 GUI 其它路由一致，未做鉴权）。
+- **POST 变更端点**（metering / budget / balance）额外做同源校验：浏览器跨站简单
+  请求（text/plain POST）会携带 `Origin`，校验其与 `Host` 一致才放行；无 `Origin`
+  的本地工具（curl 等）放行（回环守卫已限制来源地址）。
 - 插件只读取 `session/event` 与提供只读端点，不修改任何会话数据。
 
 ## 贡献 / Contributing

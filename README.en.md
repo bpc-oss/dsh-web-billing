@@ -109,7 +109,7 @@ and prices by **provider routing**:
 
 ### 3. Provider metering (billing model)
 
-Each provider can have its own billing model (Settings → Billing → Provider
+Each provider can have its own billing model (Settings → Cost → Provider
 metering, **takes effect immediately — no restart**):
 
 | Mode | Meaning |
@@ -130,7 +130,7 @@ metering, **takes effect immediately — no restart**):
 - **Recovery view**: subscription monthly fee vs cumulative recovered amount,
   visible in source groups and the header panel.
 
-### 4. Billing page (Settings → Billing)
+### 4. Billing page (Settings → Cost)
 
 The browser-side summary page (read-only plus a few immediate settings):
 
@@ -148,6 +148,9 @@ The browser-side summary page (read-only plus a few immediate settings):
   red over-budget highlight; budget stays locked to the current month.
 - **Header balance toggle**: controls whether the session-header badge shows the
   balance; the settings page always shows it.
+- **Data integrity**: ledger view-consistency self-check (`integrity`) plus
+  explicit historical-trimming gaps (`bdpGap` / `repriceGap`) — gaps are
+  visible and reconcilable, never silently shrink the ledger.
 - **Export**: CSV (UTF-8 BOM) / JSON one-click download.
 - **Session titles**: session list shows titles instead of UUIDs.
 - **Version & updates**: at the bottom — checks GitHub Releases for a newer
@@ -164,6 +167,11 @@ The browser-side summary page (read-only plus a few immediate settings):
 - **Per-model stats**: cumulative amount per model + Input / cache-hit-rate /
   Output; provider tags tinted by source (local green / free-ride sky /
   recovered purple / usage gray).
+- **Per-model gap hint**: when historical migration/trimming leaves the per-model
+  total below the session total, the panel shows an amber hint
+  (`Model split gap ¥X`) — the money is NOT lost (it stays in the totals), it
+  just can no longer be attributed to a specific model row; new data never
+  shows this hint.
 - **Balance row** (toggleable): official account balance.
 - **DeepSeek peak/off-peak hint**: shows the current phase when the session
   uses DeepSeek-family models.
@@ -173,8 +181,26 @@ The browser-side summary page (read-only plus a few immediate settings):
 ### 6. Account balance
 
 Reuses the provider's API key to call the official `GET /user/balance`
-(60s refresh, 5s timeout, silent degradation); CNY/USD both reported with the
-billing state; a runtime toggle controls the header display.
+(60s refresh, 5s timeout); CNY/USD both reported with the billing state. A
+transient failure (timeout / network hiccup) does NOT erase the last proven
+balance — the stale value is kept and labelled as cached while periodic
+refreshes retry; only a never-succeeded query shows "Unavailable". The runtime
+toggle controls the header display (`balance.enabled` or the settings toggle;
+turning it off stops polling and stops using the API key).
+
+### 7. Pricing intel (current unit prices & next transition)
+
+`/billing/state` exposes pricing intel for the client and external tools:
+
+- `currentUnitPrices`: the currently effective official unit prices
+  (dual currency + peak/off-peak mode);
+- `nextTransitionAt`: the next peak/off-peak or policy switch (epoch ms,
+  within 72h), computed by `nextPricingTransition` in `lib/pricing.js`
+  (hour probing then binary search to the second — crosses future policy
+  boundaries);
+- `observedAt` / `refreshIntervalMs`: observation time and suggested refresh
+  interval (1h);
+- `source`: the official pricing page the schedule is curated from.
 
 ## Install
 
@@ -231,11 +257,17 @@ Unit fields: `input`=cache-miss input, `cacheRead`=cache-hit input, `output`=out
 - **Durability**: 1s debounce + atomic temp-file rename; flush on exit; warns when the ledger grows past 20MB (lower `maxRecent` / `maxMessagesPerSession`).
 - **Audit fields**: `unitPrice` and pricing `mode` (`flat` / `peak` / `offPeak`) per message.
 - **Reprice gap**: history revaluation (after price/metering changes) is bounded by the retained per-message records (session details ∪ recent window); messages trimmed from both cannot be repriced and their old-price contribution is lost on revaluation. The gap is surfaced explicitly as `repriceGap` in `/billing/state` and flagged on the cost page — never silently shrinks the ledger.
+- **Per-model gap**: the per-model aggregates (`bySessionModel`) may total less than the session total on migrated ledgers (messages trimmed from both retained windows cannot be backfilled); the difference is returned as `modelGap` in `/billing/session/<id>` and flagged in the panel — money is not lost, only its per-model attribution.
 - **Balance read-only**: only the official read endpoint; the key never reaches the browser.
 
 ## Security
 
 - `/billing` endpoints loopback-only by default; `loopbackOnly: false` for LAN (no auth).
+- **State-changing POSTs** (metering / budget / balance) additionally require a
+  same-origin check: browser cross-site simple requests (text/plain POST) carry
+  an `Origin`; it must match the `Host`. Requests without an `Origin` (local
+  tools such as curl) are allowed (the loopback guard already restricts the
+  source address).
 - Reads `session/event` and serves read-only endpoints only - never mutates session data.
 - Ledger stays local (`$DSH_HOME/storages/`), no message content, never uploaded.
 
