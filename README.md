@@ -7,40 +7,30 @@
 [![GitHub release](https://img.shields.io/github/v/release/bpc-oss/dsh-web-billing?label=release&color=16a34a)](https://github.com/bpc-oss/dsh-web-billing/releases)
 [![dsh-plugin](https://img.shields.io/badge/dsh-plugin-16a34a)](https://github.com/topics/dsh-plugin)
 
-DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官方政策自动计价**
-（内置政策时间表，含 2026-08-17 起的峰谷定价），逐条消息记账，**实时显示账号余额**，
-浏览器端展示费用（**界面语言自动切换 ¥/$**）。
+DeepSeek Harness（`dsh web` / 桌面版）的 **人民币 / 美元 token 计费插件**：按官方政策自动计价
+（内置政策时间表，含 2026-08-17 起的**峰谷定价**），逐条消息记账，实时显示账号余额，浏览器端
+展示费用（界面语言自动切换 ¥ / $）。
 
-| 本会话角标（悬停查看明细） | 设置 → 费用汇总页 |
+**一句话**：你的 AI 花销「看得见、算得清、省得下」——官方价自动跟随、本地/订阅/白嫖精细化分类、
+历史一键重估、预算与余额可视。
+
+---
+
+## 📸 界面一览
+
+| 会话头部角标（悬停查看本会话明细） | 设置 → 费用 汇总页 |
 | --- | --- |
-| ![本会话角标](docs/screenshots/badge-session.png) | ![设置汇总页](docs/screenshots/settings-summary.png) |
+| ![本会话角标](docs/screenshots/badge-session.png) | ![费用页概览](docs/screenshots/settings-overview.png) |
 
-- **记账（host 端）**：订阅 `session/event`，对每条带 usage 的 `assistant/message`
-  按消息时刻取价计费（CNY 与 USD 双币种，官方美元价独立发布），账本持久化到
-  `$DSH_HOME/storages/web-billing.json`。
-- **账号余额（host 端）**：复用 provider 的 API key 调用官方 `GET /user/balance`
-  （默认 60s 刷新、5s 超时、失败静默降级），CNY/USD 双币种随 `/billing/state` 返回。
-- **本地模型节省统计**：配置 `localProviders` 后，本地（自托管）模型的调用按官方
-  价格计算「名义价值」，实际成本按 `localCostPerM`（默认 0 = 免费），差值即
-  「已节省」——角标与设置页实时显示（本地消息角标显示 `省¥X`）。
-- **Coding plan 计费**：内置 DSH 预设的全部 coding plan 官方美元价
-  （`opencode-go` / `opencode` / `kimi-coding` 等，取自 DeepSeek Harness 官方内置
-  catalog），按 **provider 路由定价**——用户无论用哪个 coding plan 的哪个模型，都能
-  准确计费，不再错误套用 DeepSeek 峰谷价。
-- **展示（浏览器端）**：每条 assistant 消息动作条上的费用角标；会话头部角标
-  悬停浮层（**全部限定本会话**）显示 本会话今日 与 本会话累计 的花费/节省、本
-  会话的分模型统计（每模型累计金额 + Input / 缓存命中率 / Output），以及使用
-  DeepSeek 系列模型时当前的官方高峰期/峰谷期时段。完整全局汇总（今日 / 本月 / 累计 /
-  账户余额 / 按模型 / 会话 / 按天历史）在 `设置 → 费用` 页。中文界面显示 ¥，英文
-  界面显示 $，也可用
-  `displayCurrency` 强制指定。
-- **查询端点（只读，默认仅回环）**：`GET /billing/state`（支持 `?range=...` 时间段）、
-  `GET /billing/session/<id>`；运行时设置：`POST /billing/metering`、`POST /billing/budget`、
-  `POST /billing/balance`（均仅回环）。
+| 费用页 · 来源分组（按来源着色 + 语义色条） | 费用页 · Provider 收费形式 |
+| --- | --- |
+| ![来源分组](docs/screenshots/settings-sources.png) | ![收费形式](docs/screenshots/settings-metering.png) |
 
-## 核心特性
+---
 
-### 官方政策自动计价
+## ✨ 核心特性
+
+### 1. 官方政策自动计价（峰谷跟随）
 
 `lib/pricing.js` 内置官方价格时间表（`OFFICIAL_PRICING_POLICIES`），每条政策有
 生效时刻（`since`）与单价表：
@@ -74,7 +64,7 @@ DeepSeek Harness（`dsh web`）的人民币/美元 token 计费插件：**按官
 > ⚠️ 政策时间表策展自官方公告（[DeepSeek API Docs](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)），
 > 请以官方页面为准；发现偏差欢迎 PR 修正。
 
-### Coding plan 计费（DSH 预设全覆盖）
+### 2. Coding plan 计费（DSH 预设全覆盖）
 
 除了 DeepSeek 官方 API，你还可以在 DSH 里接入各种 **coding plan**（订阅制编码套餐），
 如 `opencode-go` / `opencode` / `kimi-coding`，以及 qwen / xiaomi / z.ai 的 token 订阅包。
@@ -98,7 +88,7 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
 > 与 DeepSeek 官方价不同，coding plan 只有官方美元价，没有官方人民币价；人民币
 > 金额是按 `codingUsdCnyRate` 的**参考换算**（可配置），美元金额恒为官方真值。
 
-### Provider 收费形式（metering）
+### 3. Provider 收费形式（metering）
 
 每个 provider 可单独设置收费形式（设置 → 费用 → Provider 收费形式，**即时生效，无需重启**）：
 
@@ -118,24 +108,42 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
   的历史花费归零、按名义价折算节省），无需重启。
 - **回本倍数**：订阅月费 vs 累计回本金额，费用页展示「累计回本倍数」。
 
-### 费用页（设置 → 费用）
+### 4. 费用页（设置 → 费用）
 
 浏览器端汇总页（只读 + 少量即时设置）：
 
 - **时间段筛选**：今日 / 本周 / 本月 / 近 30 天 / 全部 / 自定义起止日期，所有模块
-  （概览 / 来源 / 模型 / 趋势 / 会话）跟随所选范围；默认本月。
-- **概览与洞察**：范围主卡（花费 + 省 + 来源构成条）、今日 / 累计 / 余额卡、
-  月度环比、累计回本倍数、高峰占比、范围 Token 统计、每日趋势折线图。
-- **来源分组**：按「本地省 / 回本 / 白嫖 / 按量 / Coding」分组，各带语义色点与明细。
+  （概览 / 来源 / 模型 / 会话 / 历史）跟随所选范围；默认本月。
+- **概览与来源构成**：范围主卡（花费 + **金色**合计节省 + 来源构成条）、今日 / 累计 /
+  Token / 余额卡。
+- **Token 统计**：总 token + 输入（未命中）/ 缓存命中 / 输出 分列，缓存命中率一目了然。
+- **来源分组**：按「本地部署省 / 订阅回本 / 白嫖 / 按量」分组，各带语义色条与明细
+  （纯节省按来源着色，真实付费保持中性）。
 - **月度预算**：设每月预算（¥），进度条绿→琥珀→红、超支红色高亮；预算锁定本月。
-- **余额开关**：运行时开关余额查询/展示（即时生效，无需重启）。
-- **导出**：CSV / JSON 一键下载账单（CSV 带 UTF-8 BOM）。
+- **右上角余额开关**：控制会话头部角标是否显示余额；设置页始终显示。
+- **导出**：CSV（UTF-8 BOM）/ JSON 一键下载账单。
 - **会话标题**：会话列表显示标题而非 UUID。
 
-> 聚合口径：范围明细基于最近流水窗口（`maxRecent`，默认 20000 条），更早的数据
+> 聚合口径：范围明细基于最近流水窗口（`maxRecent`，默认 100000 条），更早的数据
 > 为聚合级（日维度全量）。
 
-## 安装
+### 5. 会话头部角标（右上角）
+
+- **本会话今日 / 累计** 花费 + 节省（节省合计**金色**，与单项来源色区分）。
+- **分模型统计**：每模型累计金额 + Input / 缓存命中率 / Output，provider 标签按来源着色
+  （本地绿 / 白嫖天蓝 / 回本紫 / 按量灰）。
+- **余额行**（可开关）：官方账户余额。
+- **DeepSeek 峰谷提示**：使用 DeepSeek 系列模型时显示当前高峰期 / 峰谷期。
+- **浮层体验**：React portal 渲染（不被侧边栏遮挡）、跟随角标定位、不透明主题背景、悬停自动开合。
+
+### 6. 账号余额
+
+复用 provider 的 API key 调用官方 `GET /user/balance`（默认 60s 刷新、5s 超时、失败静默降级），
+CNY/USD 双币种随 `/billing/state` 返回；运行时开关控制右上角显示。
+
+---
+
+## 📦 安装
 
 插件是一个标准 **DSH 组合包（bundle）**（`dsh.bundle.patch` 指向包内
 `cordis.patch.yml`），按官方[打包与安装指南](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.zh.md)
@@ -180,7 +188,7 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 | `codingUsdCnyRate` | `7.2` | coding plan 美元价的参考人民币汇率（$→¥，仅展示换算；DeepSeek 官方价不受影响） |
 | `policyOverrides` | `[]` | 追加的官方政策条目（`since` 必填，`prices` 或 `peak`+`offPeak`） |
 | `persistPath` | `~/.dsh/storages/web-billing.json` | 账本文件路径 |
-| `maxRecent` | `20000` | 最近流水保留条数 |
+| `maxRecent` | `100000` | 最近流水保留条数（范围明细窗口） |
 | `maxMessagesPerSession` | `2000` | 每会话消息明细保留条数 |
 | `loopbackOnly` | `true` | `/billing` 端点仅允许回环地址访问 |
 | `balance.enabled` | `true` | 是否查询并展示账号余额 |

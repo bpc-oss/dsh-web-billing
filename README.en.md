@@ -7,44 +7,33 @@
 [![GitHub release](https://img.shields.io/github/v/release/bpc-oss/dsh-web-billing?label=release&color=16a34a)](https://github.com/bpc-oss/dsh-web-billing/releases)
 [![dsh-plugin](https://img.shields.io/badge/dsh-plugin-16a34a)](https://github.com/topics/dsh-plugin)
 
-A RMB/USD token-billing plugin for the DeepSeek Harness web UI (`dsh web`).
+A RMB/USD token-billing plugin for DeepSeek Harness (`dsh web` / desktop).
 Bills every LLM call automatically against the **official DeepSeek pricing
-policy schedule** (including the peak/off-peak pricing effective 2026-08-17),
+policy schedule** (including peak/off-peak pricing effective 2026-08-17),
 persists a ledger, shows the **account balance**, and renders live cost badges
 in the browser — **displaying USD when the UI language is English**.
 
-| Session badge (this session; hover for details) | Settings → Cost summary page |
+**In one line**: make your AI spend visible, itemized, and optimizable — official
+prices auto-follow, local/subscription/free-ride are classified precisely,
+history re-prices on demand, budget and balance are always visible.
+
+---
+
+## 📸 Screenshots
+
+| Session header badge (hover for this-session details) | Settings → Cost page |
 | --- | --- |
-| ![Session badge](docs/screenshots/badge-session-en.png) | ![Settings summary](docs/screenshots/settings-summary-en.png) |
+| ![Session badge](docs/screenshots/badge-session.png) | ![Cost overview](docs/screenshots/settings-overview.png) |
 
-- **Host side**: subscribes to `session/event` and prices each `assistant/message`
-  that carries usage, using the message's own timestamp (policy + peak/off-peak
-  phase at that moment). Ledger: `$DSH_HOME/storages/web-billing.json`.
-  Also queries the official `GET /user/balance` with the provider's API key
-  (60s refresh, silent degradation) and reports it with the billing state.
-  **Self-hosted savings**: with `localProviders` configured, local model calls
-  are valued at the official rate ("nominal value") while the actual cost is
-  `localCostPerM` (default 0 = free); the difference is tracked as savings and
-  shown in the UI (local messages show a "saved" chip).
-- **Coding-plan billing**: ships the official USD prices for **every coding plan
-  preset in DSH** (`opencode-go` / `opencode` / `kimi-coding` etc., sourced from
-  the DeepSeek Harness official pi-ai catalog) and prices by **provider routing**
-  — whichever coding plan and model you use, it is billed accurately instead of
-  wrongly falling back to DeepSeek peak/off-peak prices.
-- **Browser side**: a per-message cost chip in the assistant action strip and a
-  session-header badge whose hover panel is **fully scoped to this session**:
-  this session's today and cumulative cost/savings, per-model stats (cumulative
-  amount per model + Input / cache-hit-rate / Output), and — when the session
-  uses any DeepSeek-family model (official / local / coding-plan) — the current
-  official peak/off-peak phase. Full aggregates — today / month / total /
-  **account balance** / per-model / sessions / daily history — live on the
-  **`Settings → Cost`** summary page.
-- **Read-only endpoints** (loopback by default): `GET /billing/state`
-  (supports `?range=...` time ranges), `GET /billing/session/<id>`;
-  runtime settings: `POST /billing/metering`, `POST /billing/budget`,
-  `POST /billing/balance` (loopback only).
+| Cost page · Source groups (per-source colors + accent bars) | Cost page · Provider metering |
+| --- | --- |
+| ![Source groups](docs/screenshots/settings-sources.png) | ![Provider metering](docs/screenshots/settings-metering.png) |
 
-## Pricing engine
+---
+
+## ✨ Key features
+
+### 1. Official policy auto-pricing (peak/off-peak)
 
 `lib/pricing.js` ships a curated official policy schedule
 (`OFFICIAL_PRICING_POLICIES`):
