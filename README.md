@@ -80,8 +80,9 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
   （$/1M）来自平台官方发布。人民币展示价 = 美元官方价 × `codingUsdCnyRate`
   （默认参考汇率 7.2，仅用于展示换算；**不影响 DeepSeek 官方价**——那有官方人民币
   价，不使用此汇率）。
-- **订阅 token 包**（`qwen-token-plan` / `xiaomi-token-plan` / `zai-coding`）：平台
-  不公布逐 token 单价，属订阅额度内含，调用按 **0 元**计。
+- **订阅 token 包**（`qwen-token-plan`（含 `-cn`）/ `xiaomi-token-plan`（含
+  `-ams`/`-cn`/`-sgp`）/ `zai-coding-cn`）：平台不公布逐 token 单价，属订阅额度
+  内含，调用按 **0 元**计。
 - **归属规则**：消息按 `(provider, model)` 双双命中对应平台表才走该路由；未命中
   的模型仍按 DeepSeek 官方政策链（含峰谷）计费。这样同一个模型名（如
   `glm-5.2`）在 opencode-go 下按 opencode 官方价、在直接 API 下按各自平台价，
@@ -106,7 +107,7 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
 | `local` | 本地部署：调用按 0 计，省的是 API 钱 |
 
 - **白嫖推荐**：费用页一行提示哪些 provider 有免费模型可白嫖（`openrouter` 17 / `nvidia` 16 /
-  `opencode` 7 / `google` 2 / `huggingface` 1 / `mistral` 1 / `vercel` 3，见 `lib/promo-models.js`，
+  `opencode` 7 / `google` 2 / `huggingface` 1 / `mistral` 1 / `vercel-ai-gateway` 3，见 `lib/promo-models.js`，
   由 `scripts/sync-promo-models.mjs` 生成）；升级 DSH 后重跑脚本即可同步活动情报。
 - **历史重估**：切换收费形式后**立即重估全部历史记录**（free/subscription/local
   的历史花费归零、按名义价折算节省），无需重启。
@@ -140,28 +141,29 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
 - **分模型统计**：每模型累计金额 + Input / 缓存命中率 / Output，provider 标签按来源着色
   （本地绿 / 白嫖天蓝 / 回本紫 / 按量灰）。
 - **分模型缺口提示**：历史迁移/裁剪导致分模型合计小于会话总账时，浮层显示琥珀色
-  提示（`分模型缺 ¥X`）——金额未丢失（完整在总账），仅该笔无法再按模型拆分；新
-  产生的数据不会出现此提示。
+  提示（`分模型缺（已裁剪历史未计入）¥X`）——金额未丢失（完整在总账），仅该笔无法
+  再按模型拆分；新产生的数据不会出现此提示。
 - **余额行**（可开关）：官方账户余额。
-- **DeepSeek 峰谷提示**：使用 DeepSeek 系列模型时显示当前高峰期 / 峰谷期。
+- **DeepSeek 峰谷提示**：使用 DeepSeek 系列模型时显示当前高峰期 / 峰谷期（即空闲时段）。
 - **浮层体验**：React portal 渲染（不被侧边栏遮挡）、跟随角标定位、不透明主题背景、悬停自动开合。
 
 ### 6. 账号余额
 
 复用 provider 的 API key 调用官方 `GET /user/balance`（默认 60s 刷新、5s 超时），
 CNY/USD 双币种随 `/billing/state` 返回。**瞬时失败不抹掉已验证余额**：网络抖动/
-超时期间保留最近一次成功值并标注「缓存」，周期刷新自动重试；只有从未成功查询过
-才显示「不可用」。运行时开关控制右上角显示（`balance.enabled` 或设置页切换，
-关闭即停止轮询、不再使用 API key）。
+超时期间保留最近一次成功值（设置页副标题显示「余额来自最近一次成功查询（当前查询
+失败，稍后自动重试）」），周期刷新自动重试；只有从未成功查询过才显示「不可用」。
+运行时开关控制右上角显示（`balance.enabled` 或设置页切换，关闭即停止轮询、不再
+使用 API key）。
 
 ### 7. 计价情报（当前单价与下一切换时刻）
 
 `/billing/state` 的 `pricing` 字段随响应提供计价情报，客户端与外部工具可直接使用：
 
 - `currentUnitPrices`：当前生效的官方模型单价（双币种 + 高峰/空闲模式）；
-- `nextTransitionAt`：下一次峰谷或政策切换时刻（epoch ms，72 小时内），由
-  `lib/pricing.js` 的 `nextPricingTransition` 计算（先小时探测后二分到秒，
-  可跨越未来政策生效点）；
+- `nextTransitionAt`：下一次峰谷或政策切换时刻（epoch ms；72 小时内探测，超出
+  返回 `null`——实际因峰谷每日切换不会发生），由 `lib/pricing.js` 的
+  `nextPricingTransition` 计算（先小时探测后二分到秒，可跨越未来政策生效点）；
 - `observedAt` / `refreshIntervalMs`：观测时间与建议刷新间隔（1 小时）；
 - `source`：价格来源（官方定价页链接）。
 
@@ -249,7 +251,8 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 
 ```powershell
 npm run check   # 语法检查
-npm test        # 定价引擎 + 余额解析单元测试（node:test，无依赖）
+npm test        # 定价引擎 / 余额 / 账本单元测试（node:test，无依赖）
+node scripts/sync-coding-plans.mjs   # 从本机 DSH pi-ai catalog 重新生成 coding plan 价表
 ```
 
 结构：
@@ -276,6 +279,7 @@ scripts/          sync-coding-plans.mjs / sync-promo-models.mjs（同步官方�
   请求（text/plain POST）会携带 `Origin`，校验其与 `Host` 一致才放行；无 `Origin`
   的本地工具（curl 等）放行（回环守卫已限制来源地址）。
 - 插件只读取 `session/event` 与提供只读端点，不修改任何会话数据。
+- 账本仅存本地（`$DSH_HOME/storages/`），不含消息内容，永不外传。
 
 ## 贡献 / Contributing
 
