@@ -185,11 +185,52 @@ dsh plugin --profile web add dsh-web-billing
 powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 ```
 
-Restart `dsh web` afterwards. See `README.md` (Chinese) for the full config
-reference, ledger semantics, and development notes. To override the default
-`codingUsdCnyRate: 7.2`, set it in your profile `cordis.patch.yml` alongside the
-other keys (e.g. `codingUsdCnyRate: 7.05`). Run only one `dsh web` instance per
-`$DSH_HOME`.
+Restart `dsh web` afterwards. Run only one instance per ``. To override
+defaults, rewrite the plugin config row in `/profiles/web/cordis.patch.yml`.
+
+## Configuration
+
+| Key | Default | Meaning |
+|---|---|---|
+| `currency` | `CNY` | Currency identifier |
+| `symbol` | `¥` | RMB display symbol |
+| `symbolUsd` | `$` | USD display symbol |
+| `displayCurrency` | `auto` | `auto`=follow UI language; `CNY`/`USD` forces one |
+| `timezone` | `Asia/Shanghai` | IANA timezone for peak/off-peak windows |
+| `peakWindows` | `[[9,12],[14,18]]` | Peak hours (local, `[start,end)`) |
+| `officialPricing` | `auto` | `auto`=official auto-pricing; `off`=use only `prices` |
+| `prices` | `{}` | User price table (override/fallback, ¥/1M) |
+| `usdPrices` | `{}` | Optional USD overrides ($/1M) |
+| `localProviders` | `[]` | Self-hosted providers: official value, actual cost at `localCostPerM`, difference = savings |
+| `localCostPerM` | `0` | Actual local cost (¥/1M, uniform; 0 = free) |
+| `codingUsdCnyRate` | `7.2` | Reference $→¥ rate for coding-plan USD prices (display only) |
+| `policyOverrides` | `[]` | Extra official policy entries |
+| `persistPath` | `~/.dsh/storages/web-billing.json` | Ledger file path |
+| `maxRecent` | `100000` | Recent-ledger window (range details) |
+| `maxMessagesPerSession` | `2000` | Per-session message detail cap |
+| `loopbackOnly` | `true` | `/billing` endpoints loopback-only |
+| `balance.enabled` | `true` | Initial header-balance enabled state |
+| `balance.endpoint` | `https://api.deepseek.com/user/balance` | Balance endpoint |
+| `balance.apiKeyEnv` | `DEEPSEEK_API_KEY` | Credential reference for the API key |
+| `balance.refreshMs` | `60000` | Balance refresh interval |
+| `balance.timeoutMs` | `5000` | Balance request timeout |
+| `metering` | `{}` | Static billing-model table (runtime edits persist to `web-billing-metering.json`) |
+
+Unit fields: `input`=cache-miss input, `cacheRead`=cache-hit input, `output`=output (¥ per million tokens).
+
+## Ledger correctness
+
+- **Idempotent**: keyed by `(sessionId, messageId)`; replays/restarts never double-count.
+- **Local timezone** for "today / this month".
+- **Durability**: 1s debounce + atomic temp-file rename; flush on exit.
+- **Audit fields**: `unitPrice` and pricing `mode` (`flat` / `peak` / `offPeak`) per message.
+- **Balance read-only**: only the official read endpoint; the key never reaches the browser.
+
+## Security
+
+- `/billing` endpoints loopback-only by default; `loopbackOnly: false` for LAN (no auth).
+- Reads `session/event` and serves read-only endpoints only - never mutates session data.
+- Ledger stays local (`$DSH_HOME/storages/`), no message content, never uploaded.
 
 ## Develop
 
