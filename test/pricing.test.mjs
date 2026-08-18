@@ -11,6 +11,7 @@ import {
   codingPlanPriceAt,
   costOf,
   isPeak,
+  nextPricingTransition,
   priceAt,
   priceFor,
   resolvePrice,
@@ -355,5 +356,22 @@ test("subscriptionUnitFor: usage-free zeroes only promo models, others stay usag
   // 空 freeModels（如 UI 误清空）= 未自定义 → fallback 内置表（deepseek-v4-flash 仍免费）
   const emptyFallback = subscriptionUnitFor("bai", "deepseek-v4-flash", nominal, { bai: { mode: "usage-free", freeModels: {} } });
   assert.equal(emptyFallback.freeHit, true);
+});
+
+test("nextPricingTransition finds the next peak/off-peak switch and policy boundary", () => {
+  // 高峰窗口 09-12：10:00 → 下一次切换 12:00（窗口终点）
+  assert.equal(nextPricingTransition(at("2026-08-18T10:00:00+08:00")), at("2026-08-18T12:00:00+08:00"));
+  // 空闲 12:30 → 下一次高峰 14:00
+  assert.equal(nextPricingTransition(at("2026-08-18T12:30:00+08:00")), at("2026-08-18T14:00:00+08:00"));
+  // 18:00 高峰结束 → 次日 09:00
+  assert.equal(nextPricingTransition(at("2026-08-18T18:00:00+08:00")), at("2026-08-19T09:00:00+08:00"));
+  // 跨未来政策：8-31 23:00 空闲 → 9-1 00:00 政策切换（早于 09:00 高峰）
+  const override = [{
+    since: "2026-09-01T00:00:00+08:00",
+    label: "future-policy",
+    prices: { "*": { cny: { input: 5, cacheRead: 0.1, output: 10 }, usd: { input: 0.7, cacheRead: 0.01, output: 1.4 } } }
+  }];
+  const withOverride = [...OFFICIAL_PRICING_POLICIES, ...override];
+  assert.equal(nextPricingTransition(at("2026-08-31T23:00:00+08:00"), withOverride), at("2026-09-01T00:00:00+08:00"));
 });
 //#endregion

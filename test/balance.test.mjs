@@ -4,7 +4,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseBalanceResponse } from "../lib/balance.js";
+import { BalanceFetcher, parseBalanceResponse } from "../lib/balance.js";
 
 test("parses the official CNY payload", () => {
   const view = parseBalanceResponse({
@@ -68,4 +68,34 @@ test("tolerates missing/garbage balance fields as zero", () => {
   assert.equal(weird.cny.total, 0);
   assert.equal(weird.cny.granted, 0);
   assert.equal(weird.cny.toppedUp, 100000);
+});
+
+test("keeps the last proven balance when a later refresh fails (stale cache)", async () => {
+  const fetcher = new BalanceFetcher({
+    resolveKey: async () => "unused",
+    endpoint: "http://unused",
+    refreshMs: 60000,
+    timeoutMs: 100,
+    logger: { warn() {} }
+  });
+  const originalFetch = globalThis.fetch;
+  let fetchCount = 0;
+  globalThis.fetch = async () => {
+    fetchCount++;
+    if (fetchCount === 1) {
+      return { ok: true, json: async () => ({ is_available: true, balance_infos: [{ currency: "CNY", total_balance: "110.00", granted_balance: "10.00", topped_up_balance: "100.00" }] }) };
+    }
+    throw new Error("network down");
+  };
+  try {
+    await fetcher.refresh();
+    assert.equal(fetcher.getSnapshot().status, "ready");
+    assert.equal(fetcher.getSnapshot().balance.cny.total, 110);
+    await fetcher.refresh(); // 瞬时失败
+    assert.equal(fetcher.getSnapshot().status, "error");
+    assert.equal(fetcher.getSnapshot().balance.cny.total, 110, "stale proven balance kept after transient failure");
+  } finally {
+    globalThis.fetch = originalFetch;
+    fetcher.dispose();
+  }
 });
