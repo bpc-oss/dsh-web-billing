@@ -15,7 +15,10 @@
   "type": "module",
   "main": "lib/index.js",
   "exports": {
-    ".": "./lib/index.js",
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
     "./client": "./lib/client.js",
     "./pricing": "./lib/pricing.js",
     "./balance": "./lib/balance.js",
@@ -24,6 +27,7 @@
   "files": [
     "lib",
     "scripts",
+    "docs",
     "cordis.patch.yml",
     "CONTRIBUTING.md",
     "README.md",
@@ -55,10 +59,15 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/coding-plans.js && node --check lib/promo-models.js && node --check lib/balance.js && node --check lib/client.js",
+    "check": "node --check lib/index.js && node --check lib/pricing.js && node --check lib/coding-plans.js && node --check lib/promo-models.js && node --check lib/balance.js && node --check lib/client.js && node --check scripts/sync-coding-plans.mjs && node --check scripts/sync-promo-models.mjs",
     "sync:coding-plans": "node scripts/sync-coding-plans.mjs",
     "sync:promo-models": "node scripts/sync-promo-models.mjs",
-    "prepublishOnly": "npm run check && npm test"
+    "prepublishOnly": "npm run check && npm test",
+    "prepack": "node scripts/prepack-check.mjs"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "types": "lib/index.d.ts",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  }
 }

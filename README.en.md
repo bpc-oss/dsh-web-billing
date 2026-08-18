@@ -17,6 +17,12 @@ in the browser — **displaying USD when the UI language is English**.
 prices auto-follow, local/subscription/free-ride are classified precisely,
 history re-prices on demand, budget and balance are always visible.
 
+> ⚠️ Token and cost figures are a **local DSH ledger**: only completed
+> `assistant/message` events captured in this `$DSH_HOME` after the plugin was
+> installed. They are not the official DeepSeek account invoice. The balance
+> comes from `/user/balance`; reconcile usage across API keys and applications
+> with the DeepSeek console Usage export.
+
 ---
 
 ## 📸 Screenshots
@@ -220,10 +226,11 @@ Unit fields: `input`=cache-miss input, `cacheRead`=cache-hit input, `output`=out
 
 ## Ledger correctness
 
-- **Idempotent**: keyed by `(sessionId, messageId)`; replays/restarts never double-count.
+- **Idempotent**: keyed by `(sessionId, messageId)`; replayed/duplicate events are skipped entirely (first write wins — global counts, session aggregates and details all recognize the first write only). Restarts do NOT replay history (dsh-session constructor seeds do not emit events); idempotency covers in-run duplicate delivery within the retained message window.
 - **Local timezone** for "today / this month".
-- **Durability**: 1s debounce + atomic temp-file rename; flush on exit.
+- **Durability**: 1s debounce + atomic temp-file rename; flush on exit; warns when the ledger grows past 20MB (lower `maxRecent` / `maxMessagesPerSession`).
 - **Audit fields**: `unitPrice` and pricing `mode` (`flat` / `peak` / `offPeak`) per message.
+- **Reprice gap**: history revaluation (after price/metering changes) is bounded by the retained per-message records (session details ∪ recent window); messages trimmed from both cannot be repriced and their old-price contribution is lost on revaluation. The gap is surfaced explicitly as `repriceGap` in `/billing/state` and flagged on the cost page — never silently shrinks the ledger.
 - **Balance read-only**: only the official read endpoint; the key never reaches the browser.
 
 ## Security
