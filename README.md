@@ -22,9 +22,9 @@ DeepSeek Harness（`dsh web` / 桌面版）的 **人民币 / 美元 token 计费
 | --- | --- |
 | ![本会话角标](docs/screenshots/badge-session.png) | ![费用页概览](docs/screenshots/settings-overview.png) |
 
-| 费用页 · 来源分组（按来源着色 + 语义色条） | 费用页 · Provider 收费形式 |
+| 费用页 · Provider 收费形式 | 费用页 · 来源分组（按来源着色 + 语义色条） |
 | --- | --- |
-| ![来源分组](docs/screenshots/settings-sources.png) | ![收费形式](docs/screenshots/settings-metering.png) |
+| ![收费形式](docs/screenshots/settings-sources.png) | ![来源分组](docs/screenshots/settings-metering.png) |
 
 ---
 
@@ -100,13 +100,12 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
 | `free` | 活动免费：调用按 0 计（真正白嫖） |
 | `local` | 本地部署：调用按 0 计，省的是 API 钱 |
 
-- **白嫖推荐**：费用页内置 pi-ai catalog 的全部免费模型情报（`openrouter` / `nvidia` /
-  `opencode` / `google` 等 provider 的 cost=0 模型，见 `lib/promo-models.js`，由
-  `scripts/sync-promo-models.mjs` 生成），一键「设为按量+可白嫖」；升级 DSH 后重跑
-  脚本即可同步活动情报。
+- **白嫖推荐**：费用页一行提示哪些 provider 有免费模型可白嫖（`openrouter` 17 / `nvidia` 16 /
+  `opencode` 7 / `google` 2 / `huggingface` 1 / `mistral` 1 / `vercel` 3，见 `lib/promo-models.js`，
+  由 `scripts/sync-promo-models.mjs` 生成）；升级 DSH 后重跑脚本即可同步活动情报。
 - **历史重估**：切换收费形式后**立即重估全部历史记录**（free/subscription/local
   的历史花费归零、按名义价折算节省），无需重启。
-- **回本倍数**：订阅月费 vs 累计回本金额，费用页展示「累计回本倍数」。
+- **回本视角**：订阅 provider 的调用折算为「回本」（来源分组与浮层可见回本金额与月费）。
 
 ### 4. 费用页（设置 → 费用）
 
@@ -123,6 +122,7 @@ catalog，见 `lib/coding-plans.js`），并按 **provider 路由**计价：
 - **右上角余额开关**：控制会话头部角标是否显示余额；设置页始终显示。
 - **导出**：CSV（UTF-8 BOM）/ JSON 一键下载账单。
 - **会话标题**：会话列表显示标题而非 UUID。
+- **版本与更新**：页面底部检测 GitHub 是否有新版本并链接。
 
 > 聚合口径：范围明细基于最近流水窗口（`maxRecent`，默认 100000 条），更早的数据
 > 为聚合级（日维度全量）。

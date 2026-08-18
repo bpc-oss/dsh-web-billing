@@ -23,11 +23,11 @@ history re-prices on demand, budget and balance are always visible.
 
 | Session header badge (hover for this-session details) | Settings → Cost page |
 | --- | --- |
-| ![Session badge](docs/screenshots/badge-session.png) | ![Cost overview](docs/screenshots/settings-overview.png) |
+| ![Session badge](docs/screenshots/badge-session-en.png) | ![Cost overview](docs/screenshots/settings-overview.png) |
 
-| Cost page · Source groups (per-source colors + accent bars) | Cost page · Provider metering |
+| Cost page · Provider metering | Cost page · Source groups (per-source colors + accent bars) |
 | --- | --- |
-| ![Source groups](docs/screenshots/settings-sources.png) | ![Provider metering](docs/screenshots/settings-metering.png) |
+| ![Provider metering](docs/screenshots/settings-sources.png) | ![Source groups](docs/screenshots/settings-metering.png) |
 
 ---
 
@@ -185,8 +185,8 @@ dsh plugin --profile web add dsh-web-billing
 powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 ```
 
-Restart `dsh web` afterwards. Run only one instance per ``. To override
-defaults, rewrite the plugin config row in `/profiles/web/cordis.patch.yml`.
+Restart `dsh web` afterwards. Run only one instance per ``$DSH_HOME``. To override
+defaults, rewrite the plugin config row in `$DSH_HOME/profiles/web/cordis.patch.yml`.
 
 ## Configuration
 
