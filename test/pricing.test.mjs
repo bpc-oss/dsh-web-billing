@@ -11,6 +11,7 @@ import {
   codingPlanPriceAt,
   costOf,
   isPeak,
+  isSameOrigin,
   nextPricingTransition,
   priceAt,
   priceFor,
@@ -373,5 +374,22 @@ test("nextPricingTransition finds the next peak/off-peak switch and policy bound
   }];
   const withOverride = [...OFFICIAL_PRICING_POLICIES, ...override];
   assert.equal(nextPricingTransition(at("2026-08-31T23:00:00+08:00"), withOverride), at("2026-09-01T00:00:00+08:00"));
+});
+
+test("isSameOrigin: same-origin passes, cross-origin blocked, no-Origin allowed", () => {
+  // 同源
+  assert.equal(isSameOrigin("http://127.0.0.1:51158", "127.0.0.1:51158"), true);
+  assert.equal(isSameOrigin("http://localhost:51158", "localhost:51158"), true);
+  // 跨站（不同端口/主机）拦截
+  assert.equal(isSameOrigin("http://evil.com", "127.0.0.1:51158"), false);
+  assert.equal(isSameOrigin("http://127.0.0.1:9999", "127.0.0.1:51158"), false);
+  // 非 http(s) 协议拦截
+  assert.equal(isSameOrigin("file:///etc/passwd", "127.0.0.1:51158"), false);
+  // 无 Origin（本地工具 curl 等）放行
+  assert.equal(isSameOrigin("", "127.0.0.1:51158"), true);
+  assert.equal(isSameOrigin(undefined, "127.0.0.1:51158"), true);
+  // 非法 Origin / 缺 Host
+  assert.equal(isSameOrigin("not-a-url", "127.0.0.1:51158"), false);
+  assert.equal(isSameOrigin("http://127.0.0.1:51158", ""), false);
 });
 //#endregion
