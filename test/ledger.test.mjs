@@ -471,3 +471,115 @@ test("sessionView exposes modelGap when trimmed history is missing from per-mode
   assert.equal(view.modelGap.savings, 0);
   await rm(dir, { recursive: true, force: true });
 });
+
+// ── 拆分持久化专项测试（web-billing.json 聚合 + web-billing-detail.json 明细） ──
+
+function entry(messageId, cost, savings = 0, provider = "p1", model = "m-a") {
+  return {
+    sessionId: "s1", messageId, time: Date.parse("2026-08-18T10:00:00+08:00"),
+    provider, model, source: "official",
+    inputTokens: 100, cacheReadTokens: 0, outputTokens: 50,
+    cost, costUsd: cost / 7, costNominal: cost, costNominalUsd: cost / 7,
+    savings, savingsUsd: savings / 7, isLocal: false,
+    unitPrice: { cny: { input: 1, cacheRead: 0.02, output: 2 }, usd: { input: 0.14, cacheRead: 0.0028, output: 0.28 } },
+    mode: "flat"
+  };
+}
+
+test("split persistence: detail file missing → aggregates intact, messages/recent empty", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
+  const path = join(dir, "ledger.json");
+  const ledger = new BillingLedger(path, 1000, 10);
+  ledger.record(entry("m1", 1.5, 0.5));
+  await ledger.dispose();
+  // 删除 detail 文件（模拟丢失/损坏）
+  await rm(ledger.detailPath, { force: true });
+  const ledger2 = new BillingLedger(path, 1000, 10);
+  ledger2.load();
+  assert.equal(ledger2.totals.calls, 1, "aggregate survives detail loss");
+  assert.equal(ledger2.totals.cost, 1.5);
+  assert.equal(ledger2.sessionView("s1").cost, 1.5, "session aggregate from core");
+  assert.equal(Object.keys(ledger2.sessionView("s1").messages || {}).length, 0, "messages empty (detail missing)");
+  assert.equal(ledger2.recent.length, 0, "recent empty (detail missing)");
+  await ledger2.dispose();
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("reprice guard: skips when detail missing but aggregates exist (no zero-out)", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
+  const path = join(dir, "ledger.json");
+  const ledger = new BillingLedger(path, 1000, 10);
+  ledger.record(entry("m1", 1.5, 0.5));
+  await ledger.dispose();
+  // 删除 detail → 明细空但聚合在
+  await rm(ledger.detailPath, { force: true });
+  const ledger2 = new BillingLedger(path, 1000, 10);
+  ledger2.load();
+  assert.equal(ledger2.totals.calls, 1);
+  // 强制触发 reprice（hash 变化）
+  const pricing = { hash: "NEW-HASH", at: (m, t, p) => ({ cny: { input: 1, cacheRead: 0.02, output: 2 }, usd: { input: 0.14, cacheRead: 0.0028, output: 0.28 } }) };
+  ledger2.reprice(pricing);
+  assert.equal(ledger2.totals.calls, 1, "aggregates NOT zeroed by reprice on missing detail");
+  assert.equal(ledger2.totals.cost, 1.5);
+  await ledger2.dispose();
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("split persistence: core+detail round-trip equals in-memory state", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
+  const path = join(dir, "ledger.json");
+  const ledger = new BillingLedger(path, 1000, 10);
+  ledger.record(entry("m1", 1.5, 0.5));
+  ledger.record(entry("m2", 2.0, 0));
+  await ledger.dispose();
+  // 新实例加载
+  const ledger2 = new BillingLedger(path, 1000, 10);
+  ledger2.load();
+  assert.equal(ledger2.totals.calls, 2);
+  assert.ok(Math.abs(ledger2.totals.cost - 3.5) < 0.001);
+  assert.equal(Object.keys(ledger2.sessionView("s1").messages || {}).length, 2, "messages survive detail file");
+  assert.equal(ledger2.recent.length, 2, "recent survives detail file");
+  assert.equal(ledger2.sessionView("s1").models["s1\u0000p1\u0000m-a"].cost, 3.5, "per-model aggregate intact");
+  await ledger2.dispose();
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("legacy single-file migration: core+detail split equals original", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
+  const path = join(dir, "ledger.json");
+  // 构造旧单文件账本（sessions 含 messages + recent 在主文件）
+  const ledger = new BillingLedger(path, 1000, 10);
+  ledger.record(entry("m1", 1.5, 0.5));
+  ledger.record(entry("m2", 2.0, 0));
+  await ledger.dispose();
+  // 把 core 和 detail 合并回单文件（模拟旧格式），删 detail
+  const core = JSON.parse(await (await import("node:fs/promises")).readFile(path, "utf8"));
+  const detail = JSON.parse(await (await import("node:fs/promises")).readFile(ledger.detailPath, "utf8"));
+  core.sessions = Object.fromEntries(Object.entries(core.sessions || {}).map(([id, v]) => [id, { ...v, messages: detail.sessions?.[id]?.messages ?? {} }]));
+  core.recent = detail.recent ?? [];
+  await (await import("node:fs/promises")).writeFile(path, JSON.stringify(core));
+  await rm(ledger.detailPath, { force: true });
+  // 新实例加载旧单文件 → 应等价
+  const ledger2 = new BillingLedger(path, 1000, 10);
+  ledger2.load();
+  assert.equal(ledger2.totals.calls, 2, "aggregates from legacy single file");
+  assert.equal(Object.keys(ledger2.sessionView("s1").messages || {}).length, 2, "messages migrated from legacy");
+  assert.equal(ledger2.recent.length, 2, "recent migrated from legacy");
+  assert.ok(Math.abs(ledger2.totals.cost - 3.5) < 0.001);
+  await ledger2.dispose();
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("dispose clears debounce timers (no late async write after temp-dir removal)", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
+  const path = join(dir, "ledger.json");
+  const ledger = new BillingLedger(path, 1000, 10);
+  ledger.record(entry("m1", 1.5, 0.5));
+  await ledger.dispose();
+  assert.equal(ledger.writeTimer, null, "core timer cleared");
+  assert.equal(ledger.detailTimer, null, "detail timer cleared");
+  await rm(dir, { recursive: true, force: true });
+  // 等超过 30s 防抖窗口？不必——dispose 已清 timer，这里确认无 pending 即可。
+  assert.equal(ledger.pendingWrite, null);
+  assert.equal(ledger.pendingDetailWrite, null);
+});
