@@ -293,9 +293,8 @@ test("BillingLedger.record is idempotent: replayed (sessionId, messageId) never 
   assert.equal(ledger.totals.calls, 2);
   assert.equal(ledger.sessionView("s1").calls, 2);
   assert.equal(ledger.sessionView("s1").cost, 0.0123 + 0.02);
-  await ledger.flush();
-  // 等防抖写盘（1s）结束再清理临时目录，避免未处理拒绝。
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  await ledger.dispose();
+  // 清理临时目录（dispose 已清定时器 + 落盘）。
   await rm(dir, { recursive: true, force: true });
 });
 
@@ -378,12 +377,12 @@ test("BillingLedger: session model buckets carry source (record, persistence rou
   let models = ledger.sessionView("s1").models;
   assert.equal(models["s1\u0000bai\u0000deepseek-v4-flash"].source, "free", "bucket source from first entry");
   // 持久化往返：写盘 → 新实例 load → source 保留
-  await ledger.flush();
-  await new Promise((resolve) => setTimeout(resolve, 1200));
+  await ledger.dispose();
   const ledger2 = new BillingLedger(path, 1000, 10);
   ledger2.load();
   models = ledger2.sessionView("s1").models;
   assert.equal(models["s1\u0000bai\u0000deepseek-v4-flash"].source, "free", "source survives persistence");
+  await ledger2.dispose();
   await rm(dir, { recursive: true, force: true });
 });
 
@@ -436,9 +435,8 @@ test("BillingLedger.reprice records the trimmed-history gap instead of silently 
   assert.equal(ledger.totals.calls, 2, "reprice rebuilds from retained window (2)");
   assert.equal(ledger.lastRepriceGap.calls, 1, "trimmed message reported as reprice gap");
   assert.ok(Math.abs(ledger.lastRepriceGap.cost - 0.01) < 1e-9, "gap cost = trimmed contribution at old price (not masked by price increase)");
-  await ledger.flush();
-  // 等防抖写盘（1s）结束再清理临时目录，避免未处理拒绝。
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  await ledger.dispose();
+  // 清理临时目录（dispose 已清定时器 + 落盘）。
   await rm(dir, { recursive: true, force: true });
 });
 
