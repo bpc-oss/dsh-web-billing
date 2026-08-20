@@ -250,9 +250,10 @@ row's config, so restate every key you keep:
 | `localCostPerM` | `0` | Actual local cost (¥/1M, uniform; 0 = free) |
 | `codingUsdCnyRate` | `7.2` | Reference $→¥ rate for coding-plan USD prices (display only) |
 | `policyOverrides` | `[]` | Extra official policy entries (`since` required; `prices` or `peak`+`offPeak`) |
-| `persistPath` | `~/.dsh/storages/web-billing.json` | Ledger file path |
+| `persistPath` | `~/.dsh/storages/web-billing.json` | Ledger file path (core aggregates, high-frequency writes) |
 | `maxRecent` | `100000` | Recent-ledger window (range details) |
 | `maxMessagesPerSession` | `2000` | Per-session message detail cap |
+| `detailWriteIntervalMs` | `30000` | Detail-file (session messages + recent, separate `-detail.json`) debounce interval; raise to cut write frequency (loses ≤interval of details on power loss, aggregates untouched) |
 | `loopbackOnly` | `true` | `/billing` endpoints loopback-only |
 | `balance.enabled` | `true` | Initial header-balance enabled state |
 | `balance.endpoint` | `https://api.deepseek.com/user/balance` | Balance endpoint (prefixed with `DEEPSEEK_BASE_URL` when set) |
@@ -267,7 +268,7 @@ Unit fields: `input`=cache-miss input, `cacheRead`=cache-hit input, `output`=out
 
 - **Idempotent**: keyed by `(sessionId, messageId)`; replayed/duplicate events are skipped entirely (first write wins — global counts, session aggregates and details all recognize the first write only). Restarts do NOT replay history (dsh-session constructor seeds do not emit events); idempotency covers in-run duplicate delivery within the retained message window.
 - **Local timezone** for "today / this month".
-- **Durability**: 1s debounce + atomic temp-file rename; flush on exit; a corrupt/unreadable ledger starts empty with a warning; warns when the ledger grows past 20MB (lower `maxRecent` / `maxMessagesPerSession`).
+- **Durability (split persistence, v2.3.2)**: the ledger is split into **core aggregates** (`web-billing.json`, ~0.2MB, 1s debounce high-frequency) and **details** (`web-billing-detail.json`, session messages + recent, default 30s debounce + flush on exit) — a large ledger no longer serializes tens of MB on every session event (which froze the event loop). Power loss loses at most one detail interval of details; **aggregate statistics never lose data** (missing detail file is tolerated; `reprice` is guarded against zeroing out). The detail interval is configurable via `detailWriteIntervalMs`. A corrupt/unreadable ledger starts empty with a warning; oversized detail (>20MB) warns (lower `maxRecent` / `maxMessagesPerSession`).
 - **Audit fields**: `unitPrice` and pricing `mode` (`flat` / `peak` / `offPeak`) per message.
 - **Reprice gap**: history revaluation (after price/metering changes) is bounded by the retained per-message records (session details ∪ recent window); messages trimmed from both cannot be repriced and their old-price contribution is lost on revaluation. The gap is surfaced explicitly as `repriceGap` in `/billing/state` and flagged on the cost page — never silently shrinks the ledger.
 - **Per-model gap**: the per-model aggregates (`bySessionModel`) may total less than the session total on migrated ledgers (messages trimmed from both retained windows cannot be backfilled); the difference is returned as `modelGap` in `/billing/session/<id>` and flagged in the panel — money is not lost, only its per-model attribution.

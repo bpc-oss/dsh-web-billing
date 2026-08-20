@@ -1,6 +1,6 @@
 {
   "name": "dsh-web-billing",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "RMB/USD token-billing plugin for DSH web: official-policy auto pricing (incl. peak/off-peak), full coding-plan billing by provider routing, Settings→Cost summary page, per-message ledger, account balance, locale-driven currency display",
   "keywords": [
     "dsh",

@@ -213,9 +213,10 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
 | `localCostPerM` | `0` | 本地模型实际单价（¥/1M，所有 token 统一；默认 0 = 免费，可填电费/算力成本） |
 | `codingUsdCnyRate` | `7.2` | coding plan 美元价的参考人民币汇率（$→¥，仅展示换算；DeepSeek 官方价不受影响） |
 | `policyOverrides` | `[]` | 追加的官方政策条目（`since` 必填，`prices` 或 `peak`+`offPeak`） |
-| `persistPath` | `~/.dsh/storages/web-billing.json` | 账本文件路径 |
+| `persistPath` | `~/.dsh/storages/web-billing.json` | 账本文件路径（核心聚合，高频写） |
 | `maxRecent` | `100000` | 最近流水保留条数（范围明细窗口） |
 | `maxMessagesPerSession` | `2000` | 每会话消息明细保留条数 |
+| `detailWriteIntervalMs` | `30000` | 明细文件（sessions 消息 + recent，独立 `-detail.json`）防抖写间隔；调大降写频率（掉电最多丢该间隔内明细，统计聚合不丢） |
 | `loopbackOnly` | `true` | `/billing` 端点仅允许回环地址访问 |
 | `balance.enabled` | `true` | 是否查询并展示账号余额 |
 | `balance.endpoint` | `https://api.deepseek.com/user/balance` | 余额接口地址（`DEEPSEEK_BASE_URL` 环境变量存在时以其为前缀） |
@@ -233,9 +234,7 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1 -Profile web
   （全局计数、会话聚合、明细全部只认第一次）。重启**不会**重放历史事件（dsh-session
   构造种子不发射），幂等防御的是进程内重复投递，且在消息明细保留窗口内有效。
 - **按本地时区**统计「今日 / 本月」。
-- **落盘**：1s 防抖 + 临时文件原子替换；加载失败从空账本开始并告警；进程退出
-  时补一次 flush；账本过大（>20MB）时告警，建议调小 `maxRecent` /
-  `maxMessagesPerSession`。
+- **落盘（双文件拆分，v2.3.2）**：账本拆为**核心聚合**（`web-billing.json`，~0.2MB，1s 防抖高频写）与**明细**（`web-billing-detail.json`，sessions 消息 + recent，默认 30s 防抖 + 退出时必写）——大账本不再每次会话事件全量序列化数十 MB 卡死事件循环；掉电最多丢最近一个明细写间隔的明细，**统计聚合永不丢**（明细文件缺失容忍，`reprice` 有守卫不归零）。明细写间隔可用 `detailWriteIntervalMs` 配置。加载失败从空账本开始并告警；明细过大（>20MB）时告警，建议调小 `maxRecent` / `maxMessagesPerSession`。
 - **审计字段**：每条消息明细记录应用的单价（`unitPrice`）与计价模式（`mode`：
   `flat` / `peak` / `offPeak`）。
 - **重估缺口**：改价/切换收费形式触发历史重估时，以保留的逐条记录（会话明细 ∪
