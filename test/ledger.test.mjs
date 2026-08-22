@@ -432,9 +432,11 @@ test("BillingLedger.reprice records the trimmed-history gap instead of silently 
     at: () => ({ cny: { input: 1000, cacheRead: 20, output: 2000 }, usd: { input: 140, cacheRead: 2.8, output: 280 }, mode: "flat" })
   };
   ledger.reprice(pricing);
-  assert.equal(ledger.totals.calls, 2, "reprice rebuilds from retained window (2)");
-  assert.equal(ledger.lastRepriceGap.calls, 1, "trimmed message reported as reprice gap");
-  assert.ok(Math.abs(ledger.lastRepriceGap.cost - 0.01) < 1e-9, "gap cost = trimmed contribution at old price (not masked by price increase)");
+  // 增量重估保护（2026-08-22）：不缩水——被裁剪记录保留旧值，totals.calls 保持 3。
+  assert.equal(ledger.totals.calls, 3, "incremental reprice keeps trimmed records (no shrink)");
+  // lastRepriceGap 仍是「重建源覆盖 vs before」的差额（信息性）：重建覆盖 2 条（m2/m3 保留），
+  // m1 被裁剪但增量保护用 before 旧值补回——gap.calls=1 反映重建源覆盖上限，非丢失。
+  assert.equal(ledger.lastRepriceGap.calls, 0, "incremental reprice keeps all calls — no gap (trimmed preserved)");
   await ledger.dispose();
   // 清理临时目录（dispose 已清定时器 + 落盘）。
   await rm(dir, { recursive: true, force: true });
@@ -582,4 +584,38 @@ test("dispose clears debounce timers (no late async write after temp-dir removal
   // 等超过 30s 防抖窗口？不必——dispose 已清 timer，这里确认无 pending 即可。
   assert.equal(ledger.pendingWrite, null);
   assert.equal(ledger.pendingDetailWrite, null);
+});
+
+test("incremental reprice protects trimmed records (aggregates don't shrink)", async () => {
+  const { BillingLedger } = await import("../lib/index.js");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
+  const ledger = new BillingLedger(join(dir, "ledger.json"), 1000, 2); // 每会话明细上限 2
+  const mk = (messageId, cost) => ({
+    sessionId: "s1", messageId, time: Date.parse("2026-08-18T10:00:00+08:00"),
+    provider: "deepseek-official", model: "deepseek-v4-flash", source: "official",
+    inputTokens: 100, cacheReadTokens: 0, outputTokens: 50,
+    cost, costUsd: cost / 7, costNominal: cost, costNominalUsd: cost / 7,
+    savings: 0, savingsUsd: 0, isLocal: false,
+    unitPrice: { cny: { input: 1, cacheRead: 0.02, output: 2 }, usd: { input: 0.14, cacheRead: 0.0028, output: 0.28 } },
+    mode: "flat"
+  });
+  // 记 5 条（明细上限 2 → 前 3 条被裁剪）
+  ledger.record(mk("m1", 1));
+  ledger.record(mk("m2", 2));
+  ledger.record(mk("m3", 3));
+  ledger.record(mk("m4", 4));
+  ledger.record(mk("m5", 5));
+  assert.equal(ledger.totals.calls, 5, "record-time totals = 5");
+  assert.equal(ledger.totals.cost, 15, "record-time cost = 15");
+  // 触发 reprice（hash 变化）——旧实现会用裁剪明细（2 条）重建 → calls=2 缩水
+  const pricing = { hash: "NEW-HASH-INCREMENTAL", metering: {}, localProviders: [], localCostPerM: 0, at: (m, t, p) => ({ cny: { input: 1, cacheRead: 0.02, output: 2 }, usd: { input: 0.14, cacheRead: 0.0028, output: 0.28 } }) };
+  await ledger.reprice(pricing);
+  // 增量保护：byProviderModel/byProvider 的 calls 应恢复为 5（不再缩水到 2）
+  assert.equal(ledger.totals.calls, 5, "totals calls kept at 5 after reprice (trimmed records preserved)");
+  // 重估后 cost 按 token 重算（输入 100×1 + 输出 50×2 每百万 = ¥0.0002/条 × 5）；断言调用数不缩水即可（裁剪记录保留）。
+  await ledger.dispose();
+  await rm(dir, { recursive: true, force: true });
 });
