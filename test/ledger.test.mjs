@@ -267,7 +267,7 @@ test("ledgerIntegrity: byDayProvider gap reported via bdpGapCheck without failin
 test("BillingLedger.record is idempotent: replayed (sessionId, messageId) never drifts session aggregates", async () => {
   // 回归：旧实现「撤销会话级旧计数」（只减不加）会让会话聚合随重放次数归零甚至为负。
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
-  const ledger = new BillingLedger(join(dir, "ledger.json"), 1000, 10);
+  const ledger = new BillingLedger(join(dir, "ledger.json"), 1000, 10, 0, 0);
   const base = {
     sessionId: "s1", messageId: "m1", time: Date.parse("2026-08-18T10:00:00+08:00"),
     provider: "deepseek-official", model: "deepseek-v4-flash",
@@ -332,7 +332,7 @@ test("BillingLedger.load: missing bySessionModel does NOT double-count existing 
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
   await writeFile(path, JSON.stringify(ledgerFileV3({ withSessionModel: false })));
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   ledger.load();
   const bdpTotal = [...ledger.byDayProvider.values()].reduce((s, v) => s + v.cost, 0);
   assert.equal(bdpTotal, 4, "byDayProvider must stay 4 (no double-count to 8)");
@@ -348,7 +348,7 @@ test("BillingLedger.load: inflated byDayProvider (polluted) is healed from the u
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
   await writeFile(path, JSON.stringify(ledgerFileV3({ bdpCost: 8, withSessionModel: true })));
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   ledger.load();
   const bdpTotal = [...ledger.byDayProvider.values()].reduce((s, v) => s + v.cost, 0);
   assert.equal(bdpTotal, 4, "polluted byDayProvider healed to union value (not 8)");
@@ -362,7 +362,7 @@ test("BillingLedger: session model buckets carry source (record, persistence rou
   // record 路径：新桶带 source（浮层分模型行按此显示节省金额/语义色）。
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   const mkEntry = (messageId, source, cost, savings) => ({
     sessionId: "s1", messageId, time: Date.parse("2026-08-18T10:00:00+08:00"),
     provider: "bai", model: "deepseek-v4-flash", source,
@@ -378,7 +378,7 @@ test("BillingLedger: session model buckets carry source (record, persistence rou
   assert.equal(models["s1\u0000bai\u0000deepseek-v4-flash"].source, "free", "bucket source from first entry");
   // 持久化往返：写盘 → 新实例 load → source 保留
   await ledger.dispose();
-  const ledger2 = new BillingLedger(path, 1000, 10);
+  const ledger2 = new BillingLedger(path, 1000, 10, 0, 0);
   ledger2.load();
   models = ledger2.sessionView("s1").models;
   assert.equal(models["s1\u0000bai\u0000deepseek-v4-flash"].source, "free", "source survives persistence");
@@ -391,7 +391,7 @@ test("BillingLedger.load: backfills source on legacy bySessionModel buckets lack
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
   await writeFile(path, JSON.stringify(ledgerFileV3({ withSessionModel: true })));
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   ledger.load();
   const models = ledger.sessionView("s1").models;
   assert.equal(models["s1\u0000p1\u0000m-a"].source, "free", "legacy bucket backfilled from messages");
@@ -407,7 +407,7 @@ test("BillingLedger.reprice records the trimmed-history gap instead of silently 
   // 会把裁剪损失掩盖为 0——被保留消息的调价差值混入）。
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
-  const ledger = new BillingLedger(path, 2, 2);
+  const ledger = new BillingLedger(path, 2, 2, 0, 0);
   const mk = (messageId, cost) => ({
     sessionId: "s1", messageId, time: Date.parse("2026-08-18T10:00:00+08:00"),
     provider: "deepseek-official", model: "deepseek-v4-flash",
@@ -464,7 +464,7 @@ test("sessionView exposes modelGap when trimmed history is missing from per-mode
     recent: []
   };
   await writeFile(path, JSON.stringify(file));
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   ledger.load();
   const view = ledger.sessionView("s1");
   assert.equal(Object.keys(view.models).length, 1, "per-model buckets only cover retained history");
@@ -491,12 +491,12 @@ function entry(messageId, cost, savings = 0, provider = "p1", model = "m-a") {
 test("split persistence: detail file missing → aggregates intact, messages/recent empty", async () => {
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   ledger.record(entry("m1", 1.5, 0.5));
   await ledger.dispose();
   // 删除 detail 文件（模拟丢失/损坏）
   await rm(ledger.detailPath, { force: true });
-  const ledger2 = new BillingLedger(path, 1000, 10);
+  const ledger2 = new BillingLedger(path, 1000, 10, 0, 0);
   ledger2.load();
   assert.equal(ledger2.totals.calls, 1, "aggregate survives detail loss");
   assert.equal(ledger2.totals.cost, 1.5);
@@ -510,12 +510,12 @@ test("split persistence: detail file missing → aggregates intact, messages/rec
 test("reprice guard: skips when detail missing but aggregates exist (no zero-out)", async () => {
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   ledger.record(entry("m1", 1.5, 0.5));
   await ledger.dispose();
   // 删除 detail → 明细空但聚合在
   await rm(ledger.detailPath, { force: true });
-  const ledger2 = new BillingLedger(path, 1000, 10);
+  const ledger2 = new BillingLedger(path, 1000, 10, 0, 0);
   ledger2.load();
   assert.equal(ledger2.totals.calls, 1);
   // 强制触发 reprice（hash 变化）
@@ -530,12 +530,12 @@ test("reprice guard: skips when detail missing but aggregates exist (no zero-out
 test("split persistence: core+detail round-trip equals in-memory state", async () => {
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   ledger.record(entry("m1", 1.5, 0.5));
   ledger.record(entry("m2", 2.0, 0));
   await ledger.dispose();
   // 新实例加载
-  const ledger2 = new BillingLedger(path, 1000, 10);
+  const ledger2 = new BillingLedger(path, 1000, 10, 0, 0);
   ledger2.load();
   assert.equal(ledger2.totals.calls, 2);
   assert.ok(Math.abs(ledger2.totals.cost - 3.5) < 0.001);
@@ -550,7 +550,7 @@ test("legacy single-file migration: core+detail split equals original", async ()
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
   // 构造旧单文件账本（sessions 含 messages + recent 在主文件）
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   ledger.record(entry("m1", 1.5, 0.5));
   ledger.record(entry("m2", 2.0, 0));
   await ledger.dispose();
@@ -562,7 +562,7 @@ test("legacy single-file migration: core+detail split equals original", async ()
   await (await import("node:fs/promises")).writeFile(path, JSON.stringify(core));
   await rm(ledger.detailPath, { force: true });
   // 新实例加载旧单文件 → 应等价
-  const ledger2 = new BillingLedger(path, 1000, 10);
+  const ledger2 = new BillingLedger(path, 1000, 10, 0, 0);
   ledger2.load();
   assert.equal(ledger2.totals.calls, 2, "aggregates from legacy single file");
   assert.equal(Object.keys(ledger2.sessionView("s1").messages || {}).length, 2, "messages migrated from legacy");
@@ -575,7 +575,7 @@ test("legacy single-file migration: core+detail split equals original", async ()
 test("dispose clears debounce timers (no late async write after temp-dir removal)", async () => {
   const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
   const path = join(dir, "ledger.json");
-  const ledger = new BillingLedger(path, 1000, 10);
+  const ledger = new BillingLedger(path, 1000, 10, 0, 0);
   ledger.record(entry("m1", 1.5, 0.5));
   await ledger.dispose();
   assert.equal(ledger.writeTimer, null, "core timer cleared");
@@ -616,6 +616,50 @@ test("incremental reprice protects trimmed records (aggregates don't shrink)", a
   // 增量保护：byProviderModel/byProvider 的 calls 应恢复为 5（不再缩水到 2）
   assert.equal(ledger.totals.calls, 5, "totals calls kept at 5 after reprice (trimmed records preserved)");
   // 重估后 cost 按 token 重算（输入 100×1 + 输出 50×2 每百万 = ¥0.0002/条 × 5）；断言调用数不缩水即可（裁剪记录保留）。
+  await ledger.dispose();
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("freeze window: cutoff-day records freeze, totals stay accurate on reprice", async () => {
+  const { BillingLedger } = await import("../lib/index.js");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "dsh-billing-"));
+  // freezeWindowDays=1：昨天及以前冻结，今天活跃
+  const ledger = new BillingLedger(join(dir, "ledger.json"), 1000, 10, 0, 1);
+  const pad = (n) => String(n).padStart(2, "0");
+  const pastDay = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 5); })();
+  const pastKey = pastDay.getFullYear() + "-" + pad(pastDay.getMonth() + 1) + "-" + pad(pastDay.getDate());
+  const todayKey = (() => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); })();
+  const mk = (messageId, time, provider, cost) => ({
+    sessionId: "s1", messageId, time, provider, model: "m-a", source: "official",
+    inputTokens: 100, cacheReadTokens: 0, outputTokens: 50,
+    cost, costUsd: cost / 7, costNominal: cost, costNominalUsd: cost / 7,
+    savings: 0, savingsUsd: 0, isLocal: false,
+    unitPrice: { cny: { input: 1, cacheRead: 0.02, output: 2 }, usd: { input: 0.14, cacheRead: 0.0028, output: 0.28 } },
+    mode: "flat"
+  });
+  const pastMs = pastDay.getTime() + 10 * 3600e3;
+  const todayMs = Date.now();
+  ledger.record(mk("m-past", pastMs, "deepseek-official", 1));   // 昨天前 → 冻结
+  ledger.record(mk("m-today", todayMs, "deepseek-official", 2)); // 今天 → 活跃
+  // 冻结触发：past 被冻、today 活跃
+  console.log("frozenDays:", [...ledger.frozenDays.keys()].join(","));
+  console.log("active byDayProvider keys:", [...ledger.byDayProvider.keys()].map(k => k.split("\u0000")[0]).join(","));
+  assert.ok(ledger.frozenDays.has(pastKey), "past day frozen");
+  assert.ok(!ledger.frozenDays.has(todayKey), "today stays active");
+  // totals 只含活跃（today）
+  assert.equal(ledger.totals.calls, 1, "totals = active only");
+  assert.equal(ledger.totals.cost, 2, "active cost");
+  // reprice（hash 变化）→ 冻结区不动
+  const pricing = { hash: "FREEZE-HASH", metering: {}, localProviders: [], localCostPerM: 0, at: () => ({ cny: { input: 1, cacheRead: 0.02, output: 2 }, usd: { input: 0.14, cacheRead: 0.0028, output: 0.28 } }) };
+  await ledger.reprice(pricing);
+  assert.equal(ledger.frozenDays.get(pastKey).totals.calls, 1, "frozen day totals unchanged after reprice");
+  assert.equal(ledger.frozenDays.get(pastKey).totals.cost, 1, "frozen cost unchanged");
+  // frozenTotals 合并
+  const ft = ledger.frozenTotals();
+  assert.equal(ft.calls, 1, "frozen totals = past day");
   await ledger.dispose();
   await rm(dir, { recursive: true, force: true });
 });
